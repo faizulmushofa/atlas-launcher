@@ -4,32 +4,25 @@ project(spotlight_search C)
 # Ekspor berkas kompilasi untuk membantu Intellisense IDE (VS Code C/C++ extension) menemukan header
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-
+# ==============================================================================
 # KONFIGURASI OUTPUT DIREKTORI BUILD
+# ==============================================================================
 # Mengarahkan hasil akhir kompilasi (executable) ke folder 'build' di root proyek.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
 
-
 # ==============================================================================
-# MANAJEMEN PUSTAKA EKSTERNAL (SDL2)
+# MANAJEMEN PUSTAKA EKSTERNAL (SDL3)
 # ==============================================================================
-# Menggunakan add_subdirectory untuk menyusun SDL2 dari folder external/sdl2.
-# SDL2 harus di-clone secara manual ke folder tersebut agar tidak bergantung pada koneksi saat configure.
+# Menggunakan add_subdirectory untuk menyusun SDL3 dari folder external/sdl3.
+# SDL3 harus di-clone secara manual ke folder tersebut agar tidak bergantung pada koneksi saat configure.
+# Kita mengonfigurasi SDL3 agar hanya membangun library shared (dinamis) dan mematikan aplikasi test/uji.
 set(SDL_SHARED ON CACHE BOOL "Build shared SDL library" FORCE)
 set(SDL_STATIC OFF CACHE BOOL "Build static SDL library" FORCE)
-set(SDL_TEST OFF CACHE BOOL "Build SDL test applications" FORCE)
+set(SDL_TESTS OFF CACHE BOOL "Build SDL test applications" FORCE)
 
-add_subdirectory(external/sdl2)
-
-
-# ==============================================================================
-# MENEMUKAN OPENGL SISTEM NATIVE
-# ==============================================================================
-# Menghubungkan library OpenGL bawaan dari sistem operasi lokal (tidak diunduh).
-find_package(OpenGL REQUIRED)
-
+add_subdirectory(external/sdl3)
 
 # ==============================================================================
 # FILE SUMBER (SOURCES)
@@ -41,7 +34,6 @@ set(SOURCES
     src/render/gl_render.c
 )
 
-
 # ==============================================================================
 # TARGET EXECUTABLE & LINKING
 # ==============================================================================
@@ -49,16 +41,15 @@ set(SOURCES
 add_executable(spotlight_search ${SOURCES})
 
 # Menambahkan direktori include untuk compiler agar dapat menemukan file header lokal
-# serta file header dari SDL2
+# serta file header dari SDL3
 target_include_directories(spotlight_search PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${CMAKE_CURRENT_SOURCE_DIR}/external/sdl2/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/sdl3/include"
 )
 
-# Menghubungkan executable dengan SDL2 dan OpenGL
+# Menghubungkan executable dengan SDL3-shared (pustaka SDL3 GPU berada di dalamnya)
 target_link_libraries(spotlight_search PRIVATE
-    SDL2
-    OpenGL::GL
+    SDL3-shared
 )
 
 # ==============================================================================

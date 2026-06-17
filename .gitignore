@@ -12,7 +12,7 @@ Thumbs.db
 *.swp
 
 # Library eksternal (sumber diunduh secara lokal)
-/external/sdl2/
+/external/sdl3/
 
 # Database SQLite hasil runtime (jika ada)
 /*.db
