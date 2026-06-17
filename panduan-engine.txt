@@ -1,0 +1,272 @@
+FINAL PROJECT PLAN — CROSS-PLATFORM SPOTLIGHT CLONE
+C + SDL2/SDL3 + OPENGL + SQLITE + OS ICONS
+
+==================================================
+1. VISI PROYEK
+==================================================
+Membangun aplikasi Spotlight Search seperti macOS:
+- Dibuka dengan hotkey (Ctrl+Space / Cmd+Space)
+- UI overlay (search bar + result list)
+- Search real-time dari database
+- Icon diambil langsung dari OS (native icons)
+- Cross-platform: Windows / Linux / macOS
+
+==================================================
+2. TEKNOLOGI
+==================================================
+
+CORE LANGUAGE:
+- C
+
+WINDOW + INPUT:
+- SDL2 / SDL3
+
+RENDERING:
+- OpenGL
+
+DATABASE:
+- SQLite
+
+OS INTEGRATION:
+- Windows API (Win32)
+- Linux freedesktop / .desktop
+- macOS Cocoa/LaunchServices
+
+==================================================
+3. ARSITEKTUR SISTEM
+==================================================
+
+                ┌─────────────────────┐
+                │   SDL INPUT LAYER   │
+                │ hotkey + keyboard   │
+                └─────────┬───────────┘
+                          ↓
+                ┌─────────────────────┐
+                │     APP STATE       │
+                │ query + UI state    │
+                └─────────┬───────────┘
+                          ↓
+        ┌─────────────────────────────────┐
+        │        SEARCH ENGINE           │
+        │ SQLite + filtering logic       │
+        └─────────┬──────────────────────┘
+                          ↓
+        ┌─────────────────────────────────┐
+        │    ICON ABSTRACTION LAYER      │
+        │ get_system_icon(path)          │
+        └─────────┬──────────────────────┘
+                          ↓
+        ┌─────────────────────────────────┐
+        │  OS ICON BACKEND (PLATFORM)    │
+        │ Win / Linux / macOS           │
+        └─────────┬──────────────────────┘
+                          ↓
+                ┌─────────────────────┐
+                │  OPENGL RENDERER    │
+                │ UI + icon + text    │
+                └─────────────────────┘
+
+==================================================
+4. DATABASE DESIGN (SQLITE)
+==================================================
+
+TABLE: items
+
+CREATE TABLE items (
+    id INTEGER PRIMARY KEY,
+    name TEXT,
+    path TEXT,
+    type TEXT,
+    icon_handle TEXT,
+    platform TEXT
+);
+
+CATATAN:
+- icon_handle = hasil mapping OS icon (cached id / texture id)
+- platform = windows/linux/mac/all
+
+==================================================
+5. STARTUP FLOW
+==================================================
+
+1. Init SDL2 + OpenGL window
+2. Init SQLite DB
+3. FIRST RUN ONLY:
+    - scan file system
+    - extract OS icons
+    - store into SQLite
+4. Build icon cache (OpenGL textures)
+5. Enter main loop
+
+==================================================
+6. MAIN LOOP FLOW
+==================================================
+
+while (running):
+
+    SDL_PollEvent()
+
+    INPUT HANDLING:
+        - Ctrl+Space toggle UI
+        - typing query
+        - navigation ↑ ↓
+        - enter select
+
+    IF query changed:
+        → SQLite search update (debounced)
+
+    RENDER:
+        - background overlay
+        - search bar
+        - result list
+        - OS icon (cached texture)
+        - highlight selection
+
+    SDL_GL_SwapWindow()
+
+==================================================
+7. SEARCH ENGINE (SQLITE)
+==================================================
+
+QUERY:
+
+SELECT * FROM items
+WHERE name LIKE '%' || query || '%'
+AND (platform = current OR platform = 'all')
+LIMIT 10;
+
+RULE:
+- query hanya saat input berubah
+- tidak boleh tiap frame
+
+==================================================
+8. ICON SYSTEM (OS NATIVE)
+==================================================
+
+PRINSIP:
+- ICON diambil dari OS (bukan PNG manual)
+- hanya saat indexing (startup / update)
+
+FLOW:
+
+file path
+   ↓
+OS API extract icon
+   ↓
+raw pixel buffer
+   ↓
+OpenGL texture
+   ↓
+cache (icon_id → texture)
+
+==================================================
+9. PLATFORM IMPLEMENTATION
+
+WINDOWS:
+- WinAPI (ExtractIconEx / SHGetFileInfo)
+
+LINUX:
+- .desktop file + icon theme lookup
+
+MACOS:
+- NSWorkspace / LaunchServices
+
+==================================================
+10. ICON CACHE SYSTEM
+==================================================
+
+typedef struct {
+    char key[256];
+    unsigned int texture_id;
+} IconCache;
+
+RULE:
+- load sekali
+- reuse di semua render frame
+- jangan reload saat runtime
+
+==================================================
+11. HOTKEY SYSTEM
+==================================================
+
+SDL INPUT ONLY (SAFE DESIGN):
+
+Ctrl + Space → toggle UI
+
+MAC OPTIONAL:
+Cmd + Space (compile flag)
+
+==================================================
+12. RENDERING (OPENGL)
+==================================================
+
+UI ELEMENTS:
+- overlay background
+- search bar rectangle
+- text input
+- result rows
+- icon + label
+- selection highlight
+
+STRATEGY:
+- simple 2D rendering
+- no complex shader required
+
+==================================================
+13. HAL YANG WAJIB DIHINDARI
+==================================================
+
+X query SQLite setiap frame
+X scan filesystem terus menerus
+X load icon setiap render
+X campur OS logic ke core engine
+X UI logic bercampur dengan DB logic
+
+==================================================
+14. OPTIMASI WAJIB
+==================================================
+
+- debounce input (100–200ms)
+- cache SQLite results
+- cache icon textures
+- preload data saat startup
+
+==================================================
+15. IMPLEMENTATION ROADMAP
+==================================================
+
+PHASE 1:
+- SDL window + OpenGL context
+
+PHASE 2:
+- UI toggle (Ctrl+Space)
+
+PHASE 3:
+- input system + text rendering
+
+PHASE 4:
+- SQLite indexing + search
+
+PHASE 5:
+- result rendering UI
+
+PHASE 6:
+- OS icon extraction + caching
+
+PHASE 7:
+- polish + smooth UX
+
+==================================================
+16. TARGET NILAI
+==================================================
+
+DINILAI DARI:
+✓ Graphics pipeline (OpenGL)
+✓ Input system (SDL)
+✓ Data persistence (SQLite)
+✓ System integration (OS icons)
+✓ Architecture separation
+
+==================================================
+END OF FINAL PLAN
+==================================================
