@@ -1,0 +1,83 @@
+spotlight_search/
+├── CMakeLists.txt
+├── README.md
+|__ external/
+|   |__sdl2/
+|   |__openGL/
+|
+├── database/
+│   ├── spotlight.db
+│   └── schema.sql
+├── assets/
+│   ├── shaders/
+│   │   ├── vertex.glsl
+│   │   └── fragment.glsl
+│   ├── fonts/
+│   │   └── default.ttf
+│   └── icons/
+│       └── default.png
+├── build/
+├── src/
+│   ├── main.c
+│   │
+│   ├── core/
+│   │   ├── app.c
+│   │   ├── app.h
+│   │   ├── state.c
+│   │   ├── state.h
+│   │   └── config.h
+│   │
+│   ├── platform/
+│   │   ├── platform.c
+│   │   ├── platform.h
+│   │   ├── fs.c
+│   │   ├── fs.h
+│   │   ├── hotkey.c
+│   │   └── hotkey.h
+│   │
+│   ├── db/
+│   │   ├── sqlite.c
+│   │   ├── sqlite.h
+│   │   ├── indexer.c
+│   │   ├── indexer.h
+│   │   └── schema.sql
+│   │
+│   ├── search/
+│   │   ├── search.c
+│   │   ├── search.h
+│   │   ├── ranking.c
+│   │   └── ranking.h
+│   │
+│   ├── ui/
+│   │   ├── ui.c
+│   │   ├── ui.h
+│   │   ├── input.c
+│   │   ├── input.h
+│   │   ├── layout.c
+│   │   └── layout.h
+│   │
+│   ├── render/
+│   │   ├── gl_renderer.c
+│   │   ├── gl_renderer.h
+│   │   ├── shader.c
+│   │   ├── shader.h
+│   │   ├── texture.c
+│   │   ├── texture.h
+│   │   ├── draw2d.c
+│   │   └── draw2d.h
+│   │
+│   ├── icon/
+│   │   ├── icon.c
+│   │   ├── icon.h
+│   │   ├── icon_os.c
+│   │   ├── icon_os.h
+│   │   ├── icon_cache.c
+│   │   └── icon_cache.h
+│   │
+│   └── utils/
+│       ├── string.c
+│       ├── string.h
+│       ├── logger.c
+│       ├── logger.h
+│       ├── timer.c
+│       └── timer.h

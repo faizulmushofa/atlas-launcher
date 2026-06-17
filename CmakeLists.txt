@@ -1,0 +1,72 @@
+cmake_minimum_required(VERSION 3.14)
+project(spotlight_search C)
+
+# Ekspor berkas kompilasi untuk membantu Intellisense IDE (VS Code C/C++ extension) menemukan header
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+
+# KONFIGURASI OUTPUT DIREKTORI BUILD
+# Mengarahkan hasil akhir kompilasi (executable) ke folder 'build' di root proyek.
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
+
+
+# ==============================================================================
+# MANAJEMEN PUSTAKA EKSTERNAL (SDL2)
+# ==============================================================================
+# Menggunakan add_subdirectory untuk menyusun SDL2 dari folder external/sdl2.
+# SDL2 harus di-clone secara manual ke folder tersebut agar tidak bergantung pada koneksi saat configure.
+set(SDL_SHARED ON CACHE BOOL "Build shared SDL library" FORCE)
+set(SDL_STATIC OFF CACHE BOOL "Build static SDL library" FORCE)
+set(SDL_TEST OFF CACHE BOOL "Build SDL test applications" FORCE)
+
+add_subdirectory(external/sdl2)
+
+
+# ==============================================================================
+# MENEMUKAN OPENGL SISTEM NATIVE
+# ==============================================================================
+# Menghubungkan library OpenGL bawaan dari sistem operasi lokal (tidak diunduh).
+find_package(OpenGL REQUIRED)
+
+
+# ==============================================================================
+# FILE SUMBER (SOURCES)
+# ==============================================================================
+# Menyebutkan seluruh berkas sumber C secara eksplisit (best practice CMake)
+set(SOURCES
+    src/main.c
+    src/core/app.c
+    src/render/gl_render.c
+)
+
+
+# ==============================================================================
+# TARGET EXECUTABLE & LINKING
+# ==============================================================================
+# Membuat executable dengan nama 'spotlight_search'
+add_executable(spotlight_search ${SOURCES})
+
+# Menambahkan direktori include untuk compiler agar dapat menemukan file header lokal
+# serta file header dari SDL2
+target_include_directories(spotlight_search PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/sdl2/include"
+)
+
+# Menghubungkan executable dengan SDL2 dan OpenGL
+target_link_libraries(spotlight_search PRIVATE
+    SDL2
+    OpenGL::GL
+)
+
+# ==============================================================================
+# TARGET RUN (make run / cmake --build build --target run)
+# ==============================================================================
+# Membuat custom target 'run' untuk membangun dan menjalankan aplikasi sekaligus.
+add_custom_target(run
+    COMMAND $<TARGET_FILE:spotlight_search>
+    DEPENDS spotlight_search
+    COMMENT "Menjalankan spotlight_search..."
+)
