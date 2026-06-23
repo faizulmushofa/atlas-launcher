@@ -1,4 +1,6 @@
 #include "app.h"
+#include "state.h"
+#include "../ui/input.h"
 #include "../render/gl_render.h"
 #include <SDL3/SDL.h>
 #include <stdio.h>
@@ -24,18 +26,21 @@ static SDL_HitTestResult SDLCALL app_hit_test(SDL_Window* window, const SDL_Poin
  * @return true jika seluruh proses inisialisasi berhasil, false jika terjadi kegagalan.
  */
 bool app_init(void) {
+    // Inisialisasi state aplikasi global
+    state_init();
+
     // Menginisialisasi subsistem video SDL3 (mengembalikan true jika berhasil)
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         printf("Gagal menginisialisasi SDL: %s\n", SDL_GetError());
         return false;
     }
 
-    // Membuat window SDL3 (dimensi 800x100, flag SDL_WINDOW_BORDERLESS agar window tidak memiliki bingkai/frame)
+    // Membuat window SDL3 (dimensi 800x50, flag SDL_WINDOW_BORDERLESS | SDL_WINDOW_TRANSPARENT agar window transparan tanpa bingkai)
     app_window = SDL_CreateWindow(
         "Spotlight Search",
         800,
-        100,
-        SDL_WINDOW_BORDERLESS
+        50,
+        SDL_WINDOW_BORDERLESS | SDL_WINDOW_TRANSPARENT
     );
 
     if (!app_window) {
@@ -44,12 +49,15 @@ bool app_init(void) {
         return false;
     }
 
+    // Mengaktifkan mode text input di SDL3 untuk pengetikan pada window
+    input_init(app_window);
+
     // Daftarkan callback hit test agar window borderless bisa di-drag/tarik
     if (!SDL_SetWindowHitTest(app_window, app_hit_test, NULL)) {
         printf("Gagal mendaftarkan hit test window: %s\n", SDL_GetError());
     }
 
-    // Menginisialisasi renderer SDL_GPU eksternal
+    // Menginisialisasi renderer eksternal
     if (!gl_render_init(app_window)) {
         SDL_DestroyWindow(app_window);
         SDL_Quit();
@@ -73,6 +81,9 @@ void app_run(void) {
     while (is_running) {
         // Melakukan polling event SDL yang masuk
         while (SDL_PollEvent(&event)) {
+            // Teruskan seluruh event input ke sistem pemrosesan input
+            input_handle_event(&event);
+
             if (event.type == SDL_EVENT_QUIT) {
                 is_running = false;
             } else if (event.type == SDL_EVENT_KEY_DOWN) {
@@ -83,7 +94,7 @@ void app_run(void) {
             }
         }
 
-        // Memanggil fungsi menggambar frame dari modul renderer GPU
+        // Memanggil fungsi menggambar frame dari modul renderer
         gl_render_frame(app_window);
     }
 }
@@ -96,9 +107,11 @@ void app_run(void) {
 void app_cleanup(void) {
     // Membersihkan renderer SDL_GPU
     gl_render_cleanup(app_window);
+    printf("Membersihkan windows\n");
 
     // Hancurkan window SDL yang aktif
     if (app_window) {
+        printf("Menghancurkan SDL aktif\n");
         SDL_DestroyWindow(app_window);
         app_window = NULL;
     }

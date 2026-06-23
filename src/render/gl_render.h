@@ -5,31 +5,25 @@
 #include <stdbool.h>
 
 /**
- * Menginisialisasi perangkat SDL_GPU dan menautkannya ke window.
- * Fungsi ini membuat device GPU abstrak (SDL_GPUDevice) dan mengklaim window
- * utama agar dapat digunakan untuk proses rendering GPU.
+ * Menginisialisasi SDL_Renderer dan menautkannya ke window.
+ * Fungsi ini memilih backend GPU terbaik (Metal di Mac, Direct3D di Windows, dst).
  * 
  * @param window Pointer ke SDL_Window yang aktif.
- * @return true jika inisialisasi GPU berhasil, false jika gagal.
+ * @return true jika inisialisasi berhasil, false jika gagal.
  */
 bool gl_render_init(SDL_Window* window);
 
 /**
- * Membersihkan seluruh sumber daya renderer GPU.
- * Fungsi ini melepas tautan window dari perangkat GPU dan menghancurkan
- * objek SDL_GPUDevice yang aktif.
+ * Membersihkan seluruh sumber daya renderer.
  * 
- * @param window Pointer ke SDL_Window tempat frame digambar.
+ * @param window Pointer ke SDL_Window yang aktif.
  */
 void gl_render_cleanup(SDL_Window* window);
 
 /**
- * Merender satu frame visual menggunakan SDL_GPU.
- * Fungsi ini membuat command buffer, mengambil tekstur swapchain window,
- * memulai render pass dengan warna latar gelap solid, lalu men-submit
- * perintah ke kartu grafis.
+ * Merender satu frame visual lengkap (border, background, dan elemen UI).
  * 
- * @param window Pointer ke SDL_Window tempat frame akan digambar.
+ * @param window Pointer ke SDL_Window tempat frame digambar.
  */
 void gl_render_frame(SDL_Window* window);
 
