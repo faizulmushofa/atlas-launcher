@@ -14,6 +14,9 @@ int main(int argc, char* argv[]) {
     (void)argc;
     (void)argv;
     
+    setbuf(stdout, NULL);
+    setbuf(stderr, NULL);
+    
     if (!app_init()) {
         return 1;
     }

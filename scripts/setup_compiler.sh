@@ -57,4 +57,13 @@ else
     echo "[Spotlight Search] SDL3 sudah diunduh di external/sdl3."
 fi
 
+# Mengunduh SQLite jika belum ada
+if [ ! -d "$PROJECT_ROOT/external/sqlite3" ]; then
+    echo "[Spotlight Search] Mengunduh SQLite amalgamation dari github.com ke external/sqlite3..."
+    rm -rf "$PROJECT_ROOT/external/sqlite3"
+    git clone --depth 1 https://github.com/azadkuh/sqlite-amalgamation.git "$PROJECT_ROOT/external/sqlite3"
+else
+    echo "[Spotlight Search] SQLite sudah diunduh di external/sqlite3."
+fi
+
 echo "[Spotlight Search] Setup selesai!"

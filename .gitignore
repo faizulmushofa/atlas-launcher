@@ -16,5 +16,3 @@ Thumbs.db
 
 # Database SQLite hasil runtime (jika ada)
 /*.db
-/database/*.db
-!/database/spotlight.db

@@ -20,6 +20,22 @@ set(SDL_TESTS OFF CACHE BOOL "Build SDL test applications" FORCE)
 
 add_subdirectory(external/sdl3)
 
+# Integrasi SQLite3 (Gunakan sistem jika ada, jika tidak gunakan amalgamation)
+find_package(SQLite3 QUIET)
+
+if(SQLite3_FOUND)
+    message(STATUS "[Spotlight Search] SQLite3 ditemukan di sistem: ${SQLite3_LIBRARIES}")
+    add_library(sqlite3_lib INTERFACE)
+    target_link_libraries(sqlite3_lib INTERFACE SQLite3::SQLite3)
+else()
+    message(STATUS "[Spotlight Search] SQLite3 tidak ditemukan di sistem. Menggunakan external/sqlite3...")
+    add_library(sqlite3_lib STATIC external/sqlite3/sqlite3.c)
+    target_include_directories(sqlite3_lib PUBLIC external/sqlite3)
+    if(NOT WIN32)
+        target_link_libraries(sqlite3_lib PRIVATE pthread ${CMAKE_DL_LIBS})
+    endif()
+endif()
+
 # File sumber (sources)
 set(SOURCES
     src/main.c
@@ -30,6 +46,7 @@ set(SOURCES
     src/platform/detection.c
     src/ui/input.c
     src/ui/ui.c
+    src/db/sqlite.c
 )
 
 if(APPLE)
@@ -46,6 +63,7 @@ target_include_directories(spotlight_search PRIVATE
 
 target_link_libraries(spotlight_search PRIVATE
     SDL3-shared
+    sqlite3_lib
 )
 
 if(APPLE)
