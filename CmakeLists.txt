@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.14)
 project(spotlight_search C)
 
+if(APPLE)
+    enable_language(OBJC)
+endif()
+
 # Ekspor berkas kompilasi untuk membantu Intellisense IDE menemukan header
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -20,9 +24,17 @@ add_subdirectory(external/sdl3)
 set(SOURCES
     src/main.c
     src/core/app.c
+    src/core/state.c
     src/render/gl_render.c
-    src/render/texture.c
+    src/render/draw2d.c
+    src/platform/detection.c
+    src/ui/input.c
+    src/ui/ui.c
 )
+
+if(APPLE)
+    list(APPEND SOURCES src/render/platform_text_macos.m)
+endif()
 
 # Target executable & linking
 add_executable(spotlight_search ${SOURCES})
@@ -36,9 +48,29 @@ target_link_libraries(spotlight_search PRIVATE
     SDL3-shared
 )
 
-# Target run (make run)
-add_custom_target(run
-    COMMAND $<TARGET_FILE:spotlight_search>
-    DEPENDS spotlight_search
-    COMMENT "Menjalankan spotlight_search..."
-)
+if(APPLE)
+    target_link_libraries(spotlight_search PRIVATE "-framework Cocoa" "-framework AppKit")
+endif()
+
+# Target run & install_deps menggunakan script dari folder scripts
+if(WIN32)
+    add_custom_target(run
+        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/build.bat run
+        DEPENDS spotlight_search
+        COMMENT "Menjalankan spotlight_search..."
+    )
+    add_custom_target(install_deps
+        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/setup_compiler.bat
+        COMMENT "Mengunduh & mengonfigurasi compiler lokal..."
+    )
+else()
+    add_custom_target(run
+        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/build.sh run
+        DEPENDS spotlight_search
+        COMMENT "Menjalankan spotlight_search..."
+    )
+    add_custom_target(install_deps
+        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/setup_compiler.sh
+        COMMENT "Mengonfigurasi compiler lokal..."
+    )
+endif()
