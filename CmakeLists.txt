@@ -53,7 +53,7 @@ set(SOURCES
 )
 
 if(APPLE)
-    list(APPEND SOURCES src/render/platform_text_macos.m src/icon/icon_os_macos.m)
+    list(APPEND SOURCES src/render/platform_text_macos.m src/icon/icon_os_macos.m src/platform/platform_macos.m)
 endif()
 
 # Target executable & linking

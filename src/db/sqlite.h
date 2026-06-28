@@ -28,4 +28,19 @@ struct sqlite3* db_get_handle(void);
  */
 bool db_insert_item(const char* name, const char* path, const char* type, const char* platform);
 
+/**
+ * Memasukkan aplikasi baru ke daftar pintasan (shortcuts).
+ */
+bool db_insert_shortcut(const char* name, const char* path, const char* type, const char* platform);
+
+/**
+ * Menghapus aplikasi dari daftar pintasan (shortcuts) berdasarkan path.
+ */
+bool db_delete_shortcut(const char* path);
+
+/**
+ * Memeriksa apakah suatu aplikasi sudah ada di daftar pintasan (shortcuts).
+ */
+bool db_is_shortcut(const char* path);
+
 #endif // SQLITE_H
