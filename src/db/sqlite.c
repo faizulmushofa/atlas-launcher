@@ -1,11 +1,12 @@
 #include "sqlite.h"
+#include "indexer.h"
 #include <sqlite3.h>
 #include <stdio.h>
 
 static sqlite3* db = NULL;
 
 bool db_init(void) {
-    int rc = sqlite3_open("spotlight.db", &db);
+    int rc = sqlite3_open("db/spotlight.db", &db);
     if (rc != SQLITE_OK) {
         fprintf(stderr, "[SQLite] Gagal membuka database: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
@@ -35,6 +36,10 @@ bool db_init(void) {
     }
 
     printf("[SQLite] Skema database berhasil diverifikasi/dibuat.\n");
+
+    // Jalankan pemindaian direktori aplikasi setiap startup
+    indexer_run();
+
     return true;
 }
 
@@ -44,4 +49,29 @@ void db_close(void) {
         db = NULL;
         printf("[SQLite] Koneksi database ditutup.\n");
     }
+}
+
+struct sqlite3* db_get_handle(void) {
+    return db;
+}
+
+bool db_insert_item(const char* name, const char* path, const char* type, const char* platform) {
+    if (!db) return false;
+
+    const char* sql = "INSERT INTO items (name, path, type, platform) VALUES (?, ?, ?, ?);";
+    sqlite3_stmt* stmt = NULL;
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        return false;
+    }
+
+    sqlite3_bind_text(stmt, 1, name, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, path, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 3, type, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 4, platform, -1, SQLITE_TRANSIENT);
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    
+    return rc == SQLITE_DONE;
 }

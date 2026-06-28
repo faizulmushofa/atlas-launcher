@@ -103,6 +103,19 @@ void app_run(void) {
             }
         }
 
+        // Hitung tinggi target window secara dinamis berdasarkan hasil pencarian
+        int target_h = 50;
+        AppState* state = state_get();
+        if (state && state->result_count > 0 && state->query_len > 0) {
+            target_h = 50 + (state->result_count * 40) + 10;
+        }
+
+        int curr_w = 800, curr_h = 50;
+        SDL_GetWindowSize(app_window, &curr_w, &curr_h);
+        if (curr_h != target_h) {
+            SDL_SetWindowSize(app_window, 800, target_h);
+        }
+
         // Memanggil fungsi menggambar frame dari modul renderer
         gl_render_frame(app_window);
     }

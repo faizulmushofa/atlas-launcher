@@ -47,10 +47,13 @@ set(SOURCES
     src/ui/input.c
     src/ui/ui.c
     src/db/sqlite.c
+    src/db/indexer.c
+    src/icon/icon.c
+    src/search/search.c
 )
 
 if(APPLE)
-    list(APPEND SOURCES src/render/platform_text_macos.m)
+    list(APPEND SOURCES src/render/platform_text_macos.m src/icon/icon_os_macos.m)
 endif()
 
 # Target executable & linking
