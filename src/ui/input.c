@@ -1,6 +1,8 @@
 #include "input.h"
 #include "../core/state.h"
 #include "../search/search.h"
+#include "../platform/platform.h"
+#include "../core/app.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -91,7 +93,11 @@ void input_handle_event(SDL_Event* event) {
             if (state->result_count > 0 && state->selected_index >= 0 && state->selected_index < state->result_count) {
                 const char* path = state->results[state->selected_index].path;
                 printf("[Launcher] Mengeksekusi: %s (%s)\n", state->results[state->selected_index].name, path);
-                SDL_OpenURL(path);
+                if (platform_open_app(path)) {
+                    app_request_exit();
+                } else {
+                    printf("[Launcher] Gagal membuka aplikasi: %s\n", path);
+                }
             }
         }
         // Clipboard Paste (Cmd+V di Mac, Ctrl+V di Windows/Linux)

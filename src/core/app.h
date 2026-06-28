@@ -27,4 +27,9 @@ void app_run(void);
  */
 void app_cleanup(void);
 
+/**
+ * Meminta aplikasi untuk menutup loop utama dan keluar secara bersih.
+ */
+void app_request_exit(void);
+
 #endif // APP_H

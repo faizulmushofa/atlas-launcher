@@ -145,3 +145,8 @@ void app_cleanup(void) {
     SDL_Quit();
     printf("Aplikasi berhasil ditutup dengan bersih.\n");
 }
+
+void app_request_exit(void) {
+    is_running = false;
+}
+
