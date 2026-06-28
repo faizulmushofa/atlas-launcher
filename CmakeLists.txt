@@ -44,6 +44,7 @@ set(SOURCES
     src/render/gl_render.c
     src/render/draw2d.c
     src/platform/detection.c
+    src/platform/fs.c
     src/ui/input.c
     src/ui/ui.c
     src/db/sqlite.c
