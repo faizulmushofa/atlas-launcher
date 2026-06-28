@@ -15,6 +15,5 @@ Thumbs.db
 /external/sdl3/
 
 # Database SQLite hasil runtime (jika ada)
-/*.db
-/database/*.db
-!/database/spotlight.db
+/db/*.db
+!/db/.gitkeep

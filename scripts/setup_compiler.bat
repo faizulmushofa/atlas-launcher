@@ -27,4 +27,12 @@ if not exist "%~dp0..\external\sdl3" (
     echo [Spotlight Search] SDL3 sudah diunduh di external\sdl3.
 )
 
+if not exist "%~dp0..\external\sqlite3" (
+    echo [Spotlight Search] Mengunduh SQLite amalgamation dari github.com ke external\sqlite3...
+    if exist "%~dp0..\external\sqlite3" rmdir /s /q "%~dp0..\external\sqlite3"
+    git clone --depth 1 https://github.com/azadkuh/sqlite-amalgamation.git "%~dp0..\external\sqlite3"
+) else (
+    echo [Spotlight Search] SQLite sudah diunduh di external\sqlite3.
+)
+
 echo [Spotlight Search] Setup selesai! Anda bisa menggunakan build.bat untuk mengompilasi proyek.

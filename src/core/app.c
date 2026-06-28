@@ -2,6 +2,7 @@
 #include "state.h"
 #include "../ui/input.h"
 #include "../render/gl_render.h"
+#include "../db/sqlite.h"
 #include <SDL3/SDL.h>
 #include <stdio.h>
 
@@ -64,6 +65,14 @@ bool app_init(void) {
         return false;
     }
 
+    // Menginisialisasi koneksi database SQLite
+    if (!db_init()) {
+        gl_render_cleanup(app_window);
+        SDL_DestroyWindow(app_window);
+        SDL_Quit();
+        return false;
+    }
+
     is_running = true;
     return true;
 }
@@ -94,6 +103,19 @@ void app_run(void) {
             }
         }
 
+        // Hitung tinggi target window secara dinamis berdasarkan hasil pencarian
+        int target_h = 50;
+        AppState* state = state_get();
+        if (state && state->result_count > 0 && state->query_len > 0) {
+            target_h = 50 + (state->result_count * 40) + 10;
+        }
+
+        int curr_w = 800, curr_h = 50;
+        SDL_GetWindowSize(app_window, &curr_w, &curr_h);
+        if (curr_h != target_h) {
+            SDL_SetWindowSize(app_window, 800, target_h);
+        }
+
         // Memanggil fungsi menggambar frame dari modul renderer
         gl_render_frame(app_window);
     }
@@ -105,6 +127,9 @@ void app_run(void) {
  * menghancurkan perangkat GPU, menghancurkan window SDL3, dan menutup subsistem SDL3.
  */
 void app_cleanup(void) {
+    // Menutup koneksi SQLite
+    db_close();
+
     // Membersihkan renderer SDL_GPU
     gl_render_cleanup(app_window);
     printf("Membersihkan windows\n");

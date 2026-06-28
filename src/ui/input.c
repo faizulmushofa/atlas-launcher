@@ -1,6 +1,8 @@
 #include "input.h"
 #include "../core/state.h"
+#include "../search/search.h"
 #include <string.h>
+#include <stdio.h>
 
 void input_init(SDL_Window* window) {
     // Memulai system text input SDL3 agar event SDL_EVENT_TEXT_INPUT dapat dipicu
@@ -10,6 +12,11 @@ void input_init(SDL_Window* window) {
 void input_handle_event(SDL_Event* event) {
     AppState* state = state_get();
     if (!state) return;
+
+    // Simpan salinan query lama untuk mendeteksi perubahan
+    char prev_query[256];
+    strncpy(prev_query, state->search_query, sizeof(prev_query) - 1);
+    prev_query[sizeof(prev_query) - 1] = '\0';
 
     if (event->type == SDL_EVENT_TEXT_INPUT) {
         const char* text = event->text.text;
@@ -67,6 +74,26 @@ void input_handle_event(SDL_Event* event) {
                 state->cursor_position++;
             }
         }
+        // Navigasi Baris Pilihan ke Bawah
+        else if (key == SDLK_DOWN) {
+            if (state->result_count > 0) {
+                state->selected_index = (state->selected_index + 1) % state->result_count;
+            }
+        }
+        // Navigasi Baris Pilihan ke Atas
+        else if (key == SDLK_UP) {
+            if (state->result_count > 0) {
+                state->selected_index = (state->selected_index - 1 + state->result_count) % state->result_count;
+            }
+        }
+        // Eksekusi Pilihan dengan Tombol Enter
+        else if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
+            if (state->result_count > 0 && state->selected_index >= 0 && state->selected_index < state->result_count) {
+                const char* path = state->results[state->selected_index].path;
+                printf("[Launcher] Mengeksekusi: %s (%s)\n", state->results[state->selected_index].name, path);
+                SDL_OpenURL(path);
+            }
+        }
         // Clipboard Paste (Cmd+V di Mac, Ctrl+V di Windows/Linux)
 #ifdef __APPLE__
         else if (key == SDLK_V && (mod & SDL_KMOD_GUI)) {
@@ -92,5 +119,10 @@ void input_handle_event(SDL_Event* event) {
                 }
             }
         }
+    }
+
+    // Jika teks pencarian berubah, jalankan kueri pencarian baru
+    if (strcmp(prev_query, state->search_query) != 0) {
+        search_query(state->search_query);
     }
 }
