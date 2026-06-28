@@ -1,6 +1,7 @@
 #include "gl_render.h"
 #include "draw2d.h"
 #include "../ui/ui.h"
+#include "../icon/icon_cache.h"
 #include <stdio.h>
 
 /** Pointer global ke SDL_Renderer yang aktif. */
@@ -25,6 +26,9 @@ bool gl_render_init(SDL_Window* window) {
         return false;
     }
 
+    // Inisialisasi cache ikon GPU
+    icon_cache_init();
+
     printf("Renderer SDL3 berhasil diinisialisasi!\n");
     return true;
 }
@@ -34,6 +38,7 @@ void gl_render_cleanup(SDL_Window* window) {
     // Bersihkan font atlas dan cache UI
     draw2d_cleanup();
     ui_cleanup();
+    icon_cache_cleanup();
 
     if (g_renderer) {
         SDL_DestroyRenderer(g_renderer);

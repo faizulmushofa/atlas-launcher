@@ -2,6 +2,7 @@
 #include "../core/state.h"
 #include "../render/draw2d.h"
 #include "../icon/icon.h"
+#include "../icon/icon_cache.h"
 #include "../db/sqlite.h"
 #include <string.h>
 #include <stdio.h>
@@ -54,10 +55,7 @@ void ui_cleanup(void) {
             SDL_DestroyTexture(g_result_type_textures[i]);
             g_result_type_textures[i] = NULL;
         }
-        if (g_result_icon_textures[i]) {
-            SDL_DestroyTexture(g_result_icon_textures[i]);
-            g_result_icon_textures[i] = NULL;
-        }
+        g_result_icon_textures[i] = NULL;
         g_result_name_w[i] = 0;
         g_result_name_h[i] = 0;
         g_result_type_w[i] = 0;
@@ -166,10 +164,7 @@ void ui_render(SDL_Renderer* renderer, int window_w, int window_h) {
                     SDL_DestroyTexture(g_result_type_textures[i]);
                     g_result_type_textures[i] = NULL;
                 }
-                if (g_result_icon_textures[i]) {
-                    SDL_DestroyTexture(g_result_icon_textures[i]);
-                    g_result_icon_textures[i] = NULL;
-                }
+                g_result_icon_textures[i] = NULL;
             }
             strncpy(g_result_query_cache, state->search_query, sizeof(g_result_query_cache) - 1);
 
@@ -182,8 +177,8 @@ void ui_render(SDL_Renderer* renderer, int window_w, int window_h) {
                 snprintf(type_label, sizeof(type_label), "(%s)", state->results[i].type);
                 g_result_type_textures[i] = draw2d_create_text_texture_native(renderer, type_label, color_placeholder, &g_result_type_w[i], &g_result_type_h[i]);
 
-                // Ambil icon aplikasi secara native
-                g_result_icon_textures[i] = icon_get_native_texture(renderer, state->results[i].path);
+                // Ambil icon aplikasi dari cache GPU
+                g_result_icon_textures[i] = icon_cache_get(renderer, state->results[i].path);
             }
         }
 
