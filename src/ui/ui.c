@@ -2,7 +2,9 @@
 #include "../core/state.h"
 #include "../render/draw2d.h"
 #include "../icon/icon.h"
+#include "../db/sqlite.h"
 #include <string.h>
+#include <stdio.h>
 
 /** Tekstur cache untuk query pencarian aktif */
 static SDL_Texture* g_query_texture = NULL;
@@ -140,10 +142,21 @@ void ui_render(SDL_Renderer* renderer, int window_w, int window_h) {
         draw2d_rect(renderer, cursor_x, start_y, 2, cursor_h, color_cursor);
     }
 
+    // 4b. Gambar Tombol Hijau (+) di kanan Search Bar untuk membuka file dialog
+    int plus_x = window_w - 40;
+    int plus_y = 15;
+    SDL_Color green_color = { 46, 204, 113, 255 }; // Hijau premium
+    draw2d_fill_rounded_rect(renderer, plus_x, plus_y, 20, 20, 10, green_color);
+    
+    // Tanda plus (+) putih di dalam lingkaran
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_RenderLine(renderer, (float)(plus_x + 5), (float)(plus_y + 10), (float)(plus_x + 15), (float)(plus_y + 10));
+    SDL_RenderLine(renderer, (float)(plus_x + 10), (float)(plus_y + 5), (float)(plus_x + 10), (float)(plus_y + 15));
+
     // 5. Render Dropdown Hasil Pencarian
-    if (state->result_count > 0 && state->query_len > 0) {
-        // Hancurkan cache tekstur baris lama jika query berubah
-        if (strcmp(g_result_query_cache, state->search_query) != 0) {
+    if (state->result_count > 0) {
+        // Hancurkan cache tekstur baris lama jika query berubah ATAU query kosong (untuk daftar shortcuts dinamis)
+        if (state->query_len == 0 || strcmp(g_result_query_cache, state->search_query) != 0) {
             for (int i = 0; i < 5; i++) {
                 if (g_result_name_textures[i]) {
                     SDL_DestroyTexture(g_result_name_textures[i]);
@@ -203,10 +216,32 @@ void ui_render(SDL_Renderer* renderer, int window_w, int window_h) {
             // Gambar Tipe/Keterangan Item (Sisi Kanan)
             if (g_result_type_textures[i]) {
                 int draw_y = row_y + (40 - g_result_type_h[i]) / 2;
-                float draw_x = (float)(window_w - 24 - g_result_type_w[i]);
+                float draw_x;
+                if (state->query_len == 0) {
+                    draw_x = (float)(window_w - 55 - g_result_type_w[i]);
+                } else {
+                    draw_x = (float)(window_w - 24 - g_result_type_w[i]);
+                }
                 SDL_FRect dest_rect = { draw_x, (float)draw_y, (float)g_result_type_w[i], (float)g_result_type_h[i] };
                 SDL_RenderTexture(renderer, g_result_type_textures[i], NULL, &dest_rect);
+            }
+
+            // Gambar tombol merah (-) hanya pada tampilan daftar pintasan (kueri kosong)
+            if (state->query_len == 0) {
+                int btn_x = window_w - 40;
+                int btn_y = row_y + 10;
+                SDL_Color red_color = { 231, 76, 60, 255 };
+                draw2d_fill_rounded_rect(renderer, btn_x, btn_y, 20, 20, 10, red_color);
+                
+                // Tanda minus (-) putih
+                SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+                SDL_RenderLine(renderer, (float)(btn_x + 5), (float)(btn_y + 10), (float)(btn_x + 15), (float)(btn_y + 10));
             }
         }
     }
 }
+
+void ui_invalidate_cache(void) {
+    g_result_query_cache[0] = '\0';
+}
+

@@ -17,4 +17,9 @@ void ui_render(SDL_Renderer* renderer, int window_w, int window_h);
  */
 void ui_cleanup(void);
 
+/**
+ * Memaksa UI untuk membuang cache render agar daftar pintasan segera diperbarui.
+ */
+void ui_invalidate_cache(void);
+
 #endif // UI_H

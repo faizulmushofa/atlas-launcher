@@ -3,6 +3,7 @@
 #include "../ui/input.h"
 #include "../render/gl_render.h"
 #include "../db/sqlite.h"
+#include "../search/search.h"
 #include <SDL3/SDL.h>
 #include <stdio.h>
 
@@ -14,8 +15,18 @@ static bool is_running = false;
 
 static SDL_HitTestResult SDLCALL app_hit_test(SDL_Window* window, const SDL_Point* pt, void* data) {
     (void)window;
-    (void)pt;
     (void)data;
+
+    // Bagian dropdown hasil/pintasan (y >= 50) tidak boleh draggable agar bisa diklik
+    if (pt->y >= 50) {
+        return SDL_HITTEST_NORMAL;
+    }
+
+    // Bagian tombol hijau + di kanan search bar (x >= 740) tidak boleh draggable agar bisa diklik
+    if (pt->x >= 740) {
+        return SDL_HITTEST_NORMAL;
+    }
+
     return SDL_HITTEST_DRAGGABLE;
 }
 
@@ -73,6 +84,9 @@ bool app_init(void) {
         return false;
     }
 
+    // Muat daftar pintasan default saat startup
+    search_query("");
+
     is_running = true;
     return true;
 }
@@ -103,10 +117,10 @@ void app_run(void) {
             }
         }
 
-        // Hitung tinggi target window secara dinamis berdasarkan hasil pencarian
+        // Hitung tinggi target window secara dinamis berdasarkan hasil pencarian atau daftar pintasan
         int target_h = 50;
         AppState* state = state_get();
-        if (state && state->result_count > 0 && state->query_len > 0) {
+        if (state && state->result_count > 0) {
             target_h = 50 + (state->result_count * 40) + 10;
         }
 
@@ -149,4 +163,9 @@ void app_cleanup(void) {
 void app_request_exit(void) {
     is_running = false;
 }
+
+SDL_Window* app_get_window(void) {
+    return app_window;
+}
+
 

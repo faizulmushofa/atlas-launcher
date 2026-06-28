@@ -32,4 +32,10 @@ void app_cleanup(void);
  */
 void app_request_exit(void);
 
+/**
+ * Mendapatkan pointer ke window utama aplikasi.
+ */
+struct SDL_Window;
+struct SDL_Window* app_get_window(void);
+
 #endif // APP_H
