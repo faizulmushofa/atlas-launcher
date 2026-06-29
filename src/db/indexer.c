@@ -140,7 +140,15 @@ static void scan_win_apps_recursive(const WCHAR* dir_path) {
 
     WIN32_FIND_DATAW find_data;
     HANDLE find_handle = FindFirstFileW(search_path, &find_data);
-    if (find_handle == INVALID_HANDLE_VALUE) return;
+    if (find_handle == INVALID_HANDLE_VALUE) {
+        DWORD err = GetLastError();
+        char path_utf8[MAX_PATH];
+        WideCharToMultiByte(CP_UTF8, 0, dir_path, -1, path_utf8, MAX_PATH, NULL, NULL);
+        printf("[Indexer] WARNING: FindFirstFileW gagal untuk '%s' (Error Code: %lu)\n", path_utf8, err);
+        return;
+    }
+
+    int lnk_scanned = 0;
 
     do {
         if (wcscmp(find_data.cFileName, L".") == 0 || wcscmp(find_data.cFileName, L"..") == 0) {
@@ -167,7 +175,9 @@ static void scan_win_apps_recursive(const WCHAR* dir_path) {
                 WideCharToMultiByte(CP_UTF8, 0, full_path, -1, path, sizeof(path) - 1, NULL, NULL);
 
                 bool success = db_insert_item(name, path, "app", "Windows");
-                if (!success) {
+                if (success) {
+                    lnk_scanned++;
+                } else {
                     printf("[Indexer] Gagal menyimpan ke DB: %s\n", name);
                 }
             }
@@ -175,6 +185,12 @@ static void scan_win_apps_recursive(const WCHAR* dir_path) {
     } while (FindNextFileW(find_handle, &find_data));
 
     FindClose(find_handle);
+
+    if (lnk_scanned > 0) {
+        char path_utf8[MAX_PATH];
+        WideCharToMultiByte(CP_UTF8, 0, dir_path, -1, path_utf8, MAX_PATH, NULL, NULL);
+        printf("[Indexer] Folder '%s': Menemukan %d file shortcut (.lnk)\n", path_utf8, lnk_scanned);
+    }
 }
 
 static void scan_user_documents_recursive_win(const WCHAR* dir_path, int depth) {
@@ -185,7 +201,18 @@ static void scan_user_documents_recursive_win(const WCHAR* dir_path, int depth) 
 
     WIN32_FIND_DATAW find_data;
     HANDLE find_handle = FindFirstFileW(search_path, &find_data);
-    if (find_handle == INVALID_HANDLE_VALUE) return;
+    if (find_handle == INVALID_HANDLE_VALUE) {
+        DWORD err = GetLastError();
+        char path_utf8[MAX_PATH];
+        WideCharToMultiByte(CP_UTF8, 0, dir_path, -1, path_utf8, MAX_PATH, NULL, NULL);
+        // Abaikan logging Access Denied (5) pada folder sistem tersembunyi
+        if (err != 5) {
+            printf("[Indexer] WARNING: FindFirstFileW (doc) gagal untuk '%s' (Error Code: %lu)\n", path_utf8, err);
+        }
+        return;
+    }
+
+    int docs_scanned = 0;
 
     do {
         if (should_ignore_dir_win(find_data.cFileName)) {
@@ -208,12 +235,21 @@ static void scan_user_documents_recursive_win(const WCHAR* dir_path, int depth) 
                 WideCharToMultiByte(CP_UTF8, 0, full_path, -1, path_utf8, sizeof(path_utf8) - 1, NULL, NULL);
                 path_utf8[sizeof(path_utf8) - 1] = '\0';
 
-                db_insert_item(filename_utf8, path_utf8, ext, "Windows");
+                bool success = db_insert_item(filename_utf8, path_utf8, ext, "Windows");
+                if (success) {
+                    docs_scanned++;
+                }
             }
         }
     } while (FindNextFileW(find_handle, &find_data));
 
     FindClose(find_handle);
+
+    if (docs_scanned > 0) {
+        char path_utf8[MAX_PATH];
+        WideCharToMultiByte(CP_UTF8, 0, dir_path, -1, path_utf8, MAX_PATH, NULL, NULL);
+        printf("[Indexer] Folder '%s': Menemukan %d file dokumen terindeks\n", path_utf8, docs_scanned);
+    }
 }
 #endif
 
