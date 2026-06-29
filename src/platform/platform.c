@@ -8,7 +8,14 @@
 #include <shellapi.h>
 
 bool platform_open_app(const char* path) {
-    HINSTANCE result = ShellExecuteA(NULL, "open", path, NULL, NULL, SW_SHOWNORMAL);
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, path, -1, NULL, 0);
+    if (wlen <= 0) return false;
+    wchar_t* wpath = (wchar_t*)malloc(wlen * sizeof(wchar_t));
+    if (!wpath) return false;
+    MultiByteToWideChar(CP_UTF8, 0, path, -1, wpath, wlen);
+    
+    HINSTANCE result = ShellExecuteW(NULL, L"open", wpath, NULL, NULL, SW_SHOWNORMAL);
+    free(wpath);
     return (intptr_t)result > 32;
 }
 

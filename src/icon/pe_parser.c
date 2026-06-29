@@ -4,6 +4,10 @@
 #include <string.h>
 #include <stdint.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #define READ_LE16(p) ((uint16_t)(((p)[1] << 8) | (p)[0]))
 #define READ_LE32(p) ((uint32_t)(((p)[3] << 24) | ((p)[2] << 16) | ((p)[1] << 8) | (p)[0]))
 
@@ -57,7 +61,21 @@ static uint32_t find_resource_entry(const unsigned char* buf, uint32_t res_root,
 }
 
 unsigned char* pe_extract_icon_data(const char* filepath, size_t* out_size, int* is_png) {
+#ifdef _WIN32
+    // Konversi path UTF-8 ke UTF-16 wide-character agar aman di Windows
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, filepath, -1, NULL, 0);
+    FILE* f = NULL;
+    if (wlen > 0) {
+        wchar_t* wpath = (wchar_t*)malloc(wlen * sizeof(wchar_t));
+        if (wpath) {
+            MultiByteToWideChar(CP_UTF8, 0, filepath, -1, wpath, wlen);
+            f = _wfopen(wpath, L"rb");
+            free(wpath);
+        }
+    }
+#else
     FILE* f = fopen(filepath, "rb");
+#endif
     if (!f) return NULL;
     
     fseek(f, 0, SEEK_END);
