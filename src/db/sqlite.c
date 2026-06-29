@@ -22,6 +22,11 @@ const char* db_get_path(void) {
     }
     return g_db_path;
 }
+static int SDLCALL indexer_thread_func(void* data) {
+    (void)data;
+    indexer_run();
+    return 0;
+}
 
 bool db_init(void) {
     const char* db_path = db_get_path();
@@ -74,8 +79,14 @@ bool db_init(void) {
 
     printf("[SQLite] Skema database berhasil diverifikasi/dibuat.\n");
 
-    // Jalankan pemindaian direktori aplikasi setiap startup
-    indexer_run();
+    // Jalankan pemindaian direktori aplikasi di background thread setiap startup agar GUI tetap responsive
+    SDL_Thread* thread = SDL_CreateThread(indexer_thread_func, "IndexerThread", NULL);
+    if (thread) {
+        SDL_DetachThread(thread);
+    } else {
+        // Fallback jika pembuatan thread gagal
+        indexer_run();
+    }
 
     return true;
 }

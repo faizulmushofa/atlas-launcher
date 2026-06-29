@@ -173,6 +173,9 @@ void indexer_run(void) {
         return;
     }
 
+    // Mulai transaksi SQLite untuk mempercepat penyimpanan data ke disk
+    sqlite3_exec((sqlite3*)db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
+
     // 1. Pemindaian Aplikasi
 #ifdef __APPLE__
     printf("[Indexer] Memindai folder aplikasi macOS...\n");
@@ -222,6 +225,9 @@ void indexer_run(void) {
         printf("[Indexer] Memindai Downloads: %s\n", downloads);
         scan_user_documents_recursive(downloads, 0);
     }
+
+    // Commit seluruh data terindeks ke basis data
+    sqlite3_exec((sqlite3*)db, "COMMIT;", NULL, NULL, NULL);
 
     // Cari jumlah item terindeks (dipisah antara aplikasi dan dokumen)
     sqlite3_stmt* stmt = NULL;
