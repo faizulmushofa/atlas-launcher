@@ -1,0 +1,45 @@
+name: Cross-Platform Build CI
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+  pull_request:
+    branches: [ "main", "dev" ]
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # 1. Pasang dependensi tambahan grafis & windowing (Khusus untuk Linux Ubuntu)
+    - name: Install Linux Graphic Dependencies
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential \
+          libx11-dev libxext-dev libxrandr-dev libxinerama-dev \
+          libxcursor-dev libxi-dev libxss-dev libgl1-mesa-dev \
+          libdbus-1-dev libasound2-dev libpulse-dev libudev-dev
+
+    # 2. Unduh Pustaka Eksternal (SDL3 & SQLite Amalgamation) ke folder local external/
+    - name: Download External Libraries (SDL3 & SQLite)
+      shell: bash
+      run: |
+        chmod +x scripts/setup_compiler.sh
+        ./scripts/setup_compiler.sh
+
+    # 3. Konfigurasi CMake Build
+    - name: Configure CMake
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+    # 4. Kompilasi Kode Aplikasi
+    - name: Build Spotlight Search
+      run: cmake --build build --config Release
