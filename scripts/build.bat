@@ -46,7 +46,7 @@ if "%1"=="clean" (
         if not exist "%~dp0..\bin" mkdir "%~dp0..\bin"
         copy /y "%~dp0..\build\spotlight_search.exe" "%~dp0..\bin\spotlight_search.exe" >nul
         
-        :: Salin DLL jika ada
+        rem Salin DLL jika ada
         if exist "%~dp0..\external\sdl3\bin\SDL3.dll" (
             copy /y "%~dp0..\external\sdl3\bin\SDL3.dll" "%~dp0..\bin\SDL3.dll" >nul
         )
@@ -56,7 +56,7 @@ if "%1"=="clean" (
         echo [Spotlight Search] CMake tidak ditemukan. Melakukan kompilasi langsung menggunakan GCC...
         if not exist "%~dp0..\bin" mkdir "%~dp0..\bin"
         
-        :: Kompilasi langsung semua source file
+        rem Kompilasi langsung semua source file
         "!CC!" -O3 -Wall -Wextra ^
             "%~dp0..\src\main.c" ^
             "%~dp0..\src\core\app.c" ^
@@ -85,7 +85,7 @@ if "%1"=="clean" (
             exit /b 1
         )
         
-        :: Salin DLL pendukung agar program bisa berjalan
+        rem Salin DLL pendukung agar program bisa berjalan
         if exist "%~dp0..\external\sdl3\bin\SDL3.dll" (
             copy /y "%~dp0..\external\sdl3\bin\SDL3.dll" "%~dp0..\bin\SDL3.dll" >nul
         )

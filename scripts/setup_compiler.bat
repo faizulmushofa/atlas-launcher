@@ -36,7 +36,7 @@ if not exist "%~dp0..\external\sdl3" (
     powershell -Command "Expand-Archive -Path '%~dp0..\external\sdl3_mingw.zip' -DestinationPath '%~dp0..\external'"
     del "%~dp0..\external\sdl3_mingw.zip"
     
-    :: Salin isi folder x86_64-w64-mingw32 ke external\sdl3 secara dinamis
+    rem Salin isi folder x86_64-w64-mingw32 ke external\sdl3 secara dinamis
     set "FOUND_SDL3_DIR="
     for /d %%d in ("%~dp0..\external\SDL3-*") do (
         if exist "%%d\x86_64-w64-mingw32" (
