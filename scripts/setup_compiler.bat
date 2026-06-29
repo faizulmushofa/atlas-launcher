@@ -17,6 +17,14 @@ if not exist "%~dp0..\external\w64devkit" (
     echo [Spotlight Search] Compiler berhasil dipasang di external\w64devkit!
 )
 
+:: Periksa apakah SDL3 precompiled sudah ada. Jika folder ada tapi tidak ada libSDL3.dll.a (misal sisa klon git), kita hapus dan unduh ulang.
+if exist "%~dp0..\external\sdl3" (
+    if not exist "%~dp0..\external\sdl3\lib\libSDL3.dll.a" (
+        echo [Spotlight Search] Menghapus folder sisa klon git SDL3 lama...
+        rmdir /s /q "%~dp0..\external\sdl3"
+    )
+)
+
 if not exist "%~dp0..\external\sdl3" (
     echo [Spotlight Search] Mengunduh precompiled SDL3 development library...
     powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/libsdl-org/SDL/releases/download/release-3.2.0/SDL3-devel-3.2.0-mingw.zip' -OutFile '%~dp0..\external\sdl3_mingw.zip'"
@@ -28,12 +36,21 @@ if not exist "%~dp0..\external\sdl3" (
     powershell -Command "Expand-Archive -Path '%~dp0..\external\sdl3_mingw.zip' -DestinationPath '%~dp0..\external'"
     del "%~dp0..\external\sdl3_mingw.zip"
     
-    :: Salin isi folder x86_64-w64-mingw32 ke external\sdl3
-    if exist "%~dp0..\external\SDL3-3.2.0" (
-        xcopy /e /i /y "%~dp0..\external\SDL3-3.2.0\x86_64-w64-mingw32" "%~dp0..\external\sdl3" >nul
-        rmdir /s /q "%~dp0..\external\SDL3-3.2.0"
+    :: Salin isi folder x86_64-w64-mingw32 ke external\sdl3 secara dinamis
+    set "FOUND_SDL3_DIR="
+    for /d %%d in ("%~dp0..\external\SDL3-*") do (
+        if exist "%%d\x86_64-w64-mingw32" (
+            set "FOUND_SDL3_DIR=%%d"
+        )
     )
-    echo [Spotlight Search] SDL3 berhasil dipasang di external\sdl3!
+    if defined FOUND_SDL3_DIR (
+        xcopy /e /i /y "!FOUND_SDL3_DIR!\x86_64-w64-mingw32" "%~dp0..\external\sdl3" >nul
+        rmdir /s /q "!FOUND_SDL3_DIR!"
+        echo [Spotlight Search] SDL3 berhasil dipasang di external\sdl3!
+    ) else (
+        echo [Spotlight Search] Gagal menemukan folder hasil ekstrak SDL3.
+        exit /b 1
+    )
 ) else (
     echo [Spotlight Search] SDL3 sudah diunduh di external\sdl3.
 )

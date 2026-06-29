@@ -57,7 +57,7 @@ if "%1"=="clean" (
         if not exist "%~dp0..\bin" mkdir "%~dp0..\bin"
         
         :: Kompilasi langsung semua source file
-        !CC! -O3 -Wall -Wextra ^
+        "!CC!" -O3 -Wall -Wextra ^
             "%~dp0..\src\main.c" ^
             "%~dp0..\src\core\app.c" ^
             "%~dp0..\src\core\state.c" ^
