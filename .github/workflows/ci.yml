@@ -27,7 +27,8 @@ jobs:
         sudo apt-get install -y cmake build-essential \
           libx11-dev libxext-dev libxrandr-dev libxinerama-dev \
           libxcursor-dev libxi-dev libxss-dev libgl1-mesa-dev \
-          libdbus-1-dev libasound2-dev libpulse-dev libudev-dev
+          libdbus-1-dev libasound2-dev libpulse-dev libudev-dev \
+          libxtst-dev libxkbcommon-dev
 
     # 2. Unduh Pustaka Eksternal (SDL3 & SQLite Amalgamation) ke folder local external/
     - name: Download External Libraries (SDL3 & SQLite)
