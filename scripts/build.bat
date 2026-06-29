@@ -24,7 +24,8 @@ if "%1"=="clean" (
 ) else if "%1"=="run" (
     if exist "%~dp0..\bin\spotlight_search.exe" (
         echo [Spotlight Search] Menjalankan aplikasi...
-        "%~dp0..\bin\spotlight_search.exe"
+        cd /d "%~dp0.."
+        "bin\spotlight_search.exe"
     ) else (
         echo [Spotlight Search] Eksekutabel tidak ditemukan. Silakan jalankan 'build.bat' terlebih dahulu.
     )
