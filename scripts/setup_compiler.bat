@@ -5,7 +5,7 @@ echo [Spotlight Search] Memulai setup compiler lokal untuk Windows...
 if not exist "%~dp0..\external" mkdir "%~dp0..\external"
 
 if not exist "%~dp0..\external\w64devkit" (
-    echo [Spotlight Search] Mengunduh compiler portable w64devkit (GCC/Make)...
+    echo [Spotlight Search] Mengunduh compiler portable w64devkit GCC dan Make...
     powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/skeeto/w64devkit/releases/download/v2.0.0/w64devkit-2.0.0.zip' -OutFile '%~dp0..\external\w64devkit.zip'"
     if !ERRORLEVEL! neq 0 (
         echo [Spotlight Search] Gagal mengunduh compiler. Pastikan koneksi internet aktif.
@@ -17,7 +17,7 @@ if not exist "%~dp0..\external\w64devkit" (
     echo [Spotlight Search] Compiler berhasil dipasang di external\w64devkit!
 )
 
-:: Periksa apakah SDL3 precompiled sudah ada. Jika folder ada tapi tidak ada libSDL3.dll.a (misal sisa klon git), kita hapus dan unduh ulang.
+rem Periksa apakah SDL3 precompiled sudah ada. Jika folder ada tapi tidak ada libSDL3.dll.a seperti sisa klon git lama, kita hapus dan unduh ulang.
 if exist "%~dp0..\external\sdl3" (
     if not exist "%~dp0..\external\sdl3\lib\libSDL3.dll.a" (
         echo [Spotlight Search] Menghapus folder sisa klon git SDL3 lama...
