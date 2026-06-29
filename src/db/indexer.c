@@ -156,13 +156,20 @@ static void scan_win_apps_recursive(const WCHAR* dir_path) {
             size_t len = wcslen(find_data.cFileName);
             if (len > 4 && _wcsicmp(find_data.cFileName + len - 4, L".lnk") == 0) {
                 char name[128];
-                WideCharToMultiByte(CP_UTF8, 0, find_data.cFileName, (int)len - 4, name, sizeof(name) - 1, NULL, NULL);
-                name[len - 4] = '\0';
+                int written = WideCharToMultiByte(CP_UTF8, 0, find_data.cFileName, (int)len - 4, name, sizeof(name) - 1, NULL, NULL);
+                if (written >= 0) {
+                    name[written] = '\0';
+                } else {
+                    name[0] = '\0';
+                }
 
                 char path[512];
                 WideCharToMultiByte(CP_UTF8, 0, full_path, -1, path, sizeof(path) - 1, NULL, NULL);
 
-                db_insert_item(name, path, "app", "Windows");
+                bool success = db_insert_item(name, path, "app", "Windows");
+                if (!success) {
+                    printf("[Indexer] Gagal menyimpan ke DB: %s\n", name);
+                }
             }
         }
     } while (FindNextFileW(find_handle, &find_data));
@@ -307,10 +314,16 @@ void indexer_run(void) {
 #elif defined(_WIN32)
     WCHAR program_data[MAX_PATH];
     ExpandEnvironmentStringsW(L"%ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs", program_data, MAX_PATH);
+    char pd_utf8[MAX_PATH];
+    WideCharToMultiByte(CP_UTF8, 0, program_data, -1, pd_utf8, MAX_PATH, NULL, NULL);
+    printf("[Indexer] Memindai Start Menu (System): %s\n", pd_utf8);
     scan_win_apps_recursive(program_data);
 
     WCHAR app_data[MAX_PATH];
     ExpandEnvironmentStringsW(L"%AppData%\\Microsoft\\Windows\\Start Menu\\Programs", app_data, MAX_PATH);
+    char ad_utf8[MAX_PATH];
+    WideCharToMultiByte(CP_UTF8, 0, app_data, -1, ad_utf8, MAX_PATH, NULL, NULL);
+    printf("[Indexer] Memindai Start Menu (User): %s\n", ad_utf8);
     scan_win_apps_recursive(app_data);
 #elif defined(__linux__)
     scan_linux_apps("/usr/share/applications");
