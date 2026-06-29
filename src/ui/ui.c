@@ -102,7 +102,7 @@ void ui_render(SDL_Renderer* renderer, int window_w, int window_h) {
                 g_query_texture = NULL;
             }
             
-            strncpy(g_query_cache, state->search_query, sizeof(g_query_cache) - 1);
+            snprintf(g_query_cache, sizeof(g_query_cache), "%s", state->search_query);
             g_query_texture = draw2d_create_text_texture_native(renderer, state->search_query, color_active, &g_query_w, &g_query_h);
         }
 
@@ -166,7 +166,7 @@ void ui_render(SDL_Renderer* renderer, int window_w, int window_h) {
                 }
                 g_result_icon_textures[i] = NULL;
             }
-            strncpy(g_result_query_cache, state->search_query, sizeof(g_result_query_cache) - 1);
+            snprintf(g_result_query_cache, sizeof(g_result_query_cache), "%s", state->search_query);
 
             // Buat cache tekstur untuk hasil pencarian aktif
             for (int i = 0; i < state->result_count; i++) {

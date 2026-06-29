@@ -30,7 +30,7 @@ if exist "%~dp0..\external\sdl3" (
 
 if not exist "%~dp0..\external\sdl3" (
     echo [Spotlight Search] Mengunduh precompiled SDL3 development library...
-    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $url='https://github.com/libsdl-org/SDL/releases/download/release-3.2.0/SDL3-devel-3.2.0-mingw.zip'; $output='%~dp0..\external\sdl3_mingw.zip'; $wc=New-Object System.Net.WebClient; register-objectevent $wc DownloadProgressChanged -action { Write-Host -NoNewline ('`r[Spotlight Search] Mengunduh SDL3: ' + $eventArgs.ProgressPercentage + '%%') } | Out-Null; $wc.DownloadFileAsync((New-Object System.Uri($url)), $output); while ($wc.IsBusy) { Start-Sleep -Milliseconds 100 }; Write-Host ''"
+    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $url='https://github.com/libsdl-org/SDL/releases/download/release-3.4.10/SDL3-devel-3.4.10-mingw.zip'; $output='%~dp0..\external\sdl3_mingw.zip'; $wc=New-Object System.Net.WebClient; register-objectevent $wc DownloadProgressChanged -action { Write-Host -NoNewline ('`r[Spotlight Search] Mengunduh SDL3: ' + $eventArgs.ProgressPercentage + '%%') } | Out-Null; $wc.DownloadFileAsync((New-Object System.Uri($url)), $output); while ($wc.IsBusy) { Start-Sleep -Milliseconds 100 }; Write-Host ''"
     if !ERRORLEVEL! neq 0 (
         echo [Spotlight Search] Gagal mengunduh SDL3. Pastikan koneksi internet aktif.
         exit /b 1

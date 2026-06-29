@@ -71,10 +71,10 @@ else
             LIBS="$LIBS -Lexternal/sdl3/lib -lSDL3"
         fi
         
-        SRCS="src/main.c src/core/app.c src/core/state.c src/render/gl_render.c src/render/draw2d.c src/platform/detection.c src/platform/fs.c src/ui/input.c src/ui/ui.c src/db/sqlite.c src/db/indexer.c src/icon/icon.c src/icon/icon_cache.c src/search/search.c src/search/ranking.c external/sqlite3/sqlite3.c"
+        SRCS="src/main.c src/core/app.c src/core/state.c src/render/gl_render.c src/render/draw2d.c src/platform/detection.c src/platform/fs.c src/ui/input.c src/ui/ui.c src/db/sqlite.c src/db/indexer.c src/icon/icon.c src/icon/icon_cache.c src/icon/pe_parser.c src/icon/icns_parser.c src/icon/generic_icon.c src/search/search.c src/search/ranking.c external/sqlite3/sqlite3.c"
         
         if [ "$OS_NAME" = "Darwin" ]; then
-            SRCS="$SRCS src/render/platform_text_macos.m src/icon/icon_os_macos.m src/platform/platform_macos.m"
+            SRCS="$SRCS src/render/platform_text_macos.m src/platform/platform_macos.m"
             LIBS="$LIBS -framework Cocoa -framework AppKit"
         else
             SRCS="$SRCS src/platform/platform.c"
