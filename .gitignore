@@ -1,0 +1,22 @@
+# Hasil kompilasi dan build CMake
+/build/
+
+# Konfigurasi IDE dan basis data compiler
+/.vscode/
+/.clangd
+/compile_commands.json
+
+# Berkas sistem operasi
+.DS_Store
+Thumbs.db
+*.swp
+
+# Library eksternal (sumber diunduh secara lokal)
+/external/
+
+# Database SQLite hasil runtime (jika ada)
+/db/*.db
+!/db/.gitkeep
+
+# Hasil Kompilasi
+/bin/
