@@ -14,11 +14,27 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/build")
 
 # Manajemen pustaka eksternal (SDL3)
-set(SDL_SHARED ON CACHE BOOL "Build shared SDL library" FORCE)
-set(SDL_STATIC OFF CACHE BOOL "Build static SDL library" FORCE)
-set(SDL_TESTS OFF CACHE BOOL "Build SDL test applications" FORCE)
-
-add_subdirectory(external/sdl3)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/sdl3/CMakeLists.txt")
+    set(SDL_SHARED ON CACHE BOOL "Build shared SDL library" FORCE)
+    set(SDL_STATIC OFF CACHE BOOL "Build static SDL library" FORCE)
+    set(SDL_TESTS OFF CACHE BOOL "Build SDL test applications" FORCE)
+    add_subdirectory(external/sdl3)
+else()
+    # Gunakan precompiled SDL3 yang sudah diunduh
+    add_library(SDL3-shared SHARED IMPORTED)
+    if(WIN32)
+        set_target_properties(SDL3-shared PROPERTIES
+            IMPORTED_IMPLIB "${CMAKE_CURRENT_SOURCE_DIR}/external/sdl3/lib/libSDL3.dll.a"
+            IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/external/sdl3/bin/SDL3.dll"
+            INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/external/sdl3/include"
+        )
+    else()
+        set_target_properties(SDL3-shared PROPERTIES
+            IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/external/sdl3/lib/libSDL3.dylib"
+            INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/external/sdl3/include"
+        )
+    endif()
+endif()
 
 # Integrasi SQLite3 (Gunakan sistem jika ada, jika tidak gunakan amalgamation)
 find_package(SQLite3 QUIET)

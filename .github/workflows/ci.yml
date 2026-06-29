@@ -60,9 +60,16 @@ jobs:
     # 4. Jalankan Pembangunan Berdasarkan Metode
     - name: Build with CMake
       if: matrix.build-method == 'cmake'
+      shell: bash
       run: |
-        cmake -B build -DCMAKE_BUILD_TYPE=Release
-        cmake --build build --config Release
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          export PATH="$GITHUB_WORKSPACE/external/w64devkit/bin:$PATH"
+          cmake -B build -G "MinGW Makefiles" -DCMAKE_C_COMPILER=gcc -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
+        else
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
+        fi
 
     - name: Build without CMake (Direct Build)
       if: matrix.build-method == 'direct'

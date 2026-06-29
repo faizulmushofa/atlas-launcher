@@ -6,6 +6,7 @@
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
 #include <shellapi.h>
+#include <stdlib.h>
 
 bool platform_open_app(const char* path) {
     int wlen = MultiByteToWideChar(CP_UTF8, 0, path, -1, NULL, 0);
