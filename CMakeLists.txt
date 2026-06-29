@@ -26,7 +26,8 @@ find_package(SQLite3 QUIET)
 if(SQLite3_FOUND)
     message(STATUS "[Spotlight Search] SQLite3 ditemukan di sistem: ${SQLite3_LIBRARIES}")
     add_library(sqlite3_lib INTERFACE)
-    target_link_libraries(sqlite3_lib INTERFACE SQLite3::SQLite3)
+    target_link_libraries(sqlite3_lib INTERFACE ${SQLite3_LIBRARIES})
+    target_include_directories(sqlite3_lib INTERFACE ${SQLite3_INCLUDE_DIRS})
 else()
     message(STATUS "[Spotlight Search] SQLite3 tidak ditemukan di sistem. Menggunakan external/sqlite3...")
     add_library(sqlite3_lib STATIC external/sqlite3/sqlite3.c)
@@ -55,8 +56,14 @@ set(SOURCES
     src/search/ranking.c
 )
 
-if(APPLE)
+# Integrasi file sumber berdasarkan Platform OS
+if(WIN32)
+    list(APPEND SOURCES src/render/platform_text_windows.c src/platform/platform.c)
+elseif(APPLE)
     list(APPEND SOURCES src/render/platform_text_macos.m src/icon/icon_os_macos.m src/platform/platform_macos.m)
+else()
+    # Linux
+    list(APPEND SOURCES src/platform/platform.c)
 endif()
 
 # Target executable & linking
@@ -71,6 +78,10 @@ target_link_libraries(spotlight_search PRIVATE
     SDL3-shared
     sqlite3_lib
 )
+
+if(UNIX)
+    target_link_libraries(spotlight_search PRIVATE m)
+endif()
 
 if(APPLE)
     target_link_libraries(spotlight_search PRIVATE "-framework Cocoa" "-framework AppKit")
