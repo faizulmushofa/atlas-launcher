@@ -111,10 +111,10 @@ Saat baris hasil dipilih dan tombol `Enter` ditekan, aplikasi memanggil peluncur
 
 ### Prasyarat Sistem
 - **macOS**: Memiliki compiler `clang` (biasanya terpasang otomatis saat memasang Xcode Command Line Tools).
-- **Windows**: Direkomendasikan memiliki `Git` dan compiler GCC.
+- **Windows**: Cukup memiliki `Git` (compiler GCC dan library akan diunduh otomatis oleh skrip orkestrasi).
 - **Linux**: Memiliki compiler `gcc`/`clang` dan `cmake`.
 
-### Langkah-Langkah
+### Langkah-Langkah Build Lintas Platform
 
 #### 1. Kloning Repositori
 Jalankan perintah clone untuk mengunduh berkas proyek ke komputer Anda:
@@ -123,34 +123,35 @@ git clone https://github.com/faizulmushofa/atlas-launcher.git
 cd spotlight_search
 ```
 
-#### 2. Pasang Dependensi (`make install`)
-Jalankan perintah berikut untuk mengunduh SDL3 dan SQLite ke folder lokal secara otomatis:
-```bash
-make install
-```
-> [!NOTE]  
-> - Skrip instalasi secara otomatis mendeteksi ketersediaan SQLite di komputer Anda. Jika tidak ditemukan, skrip akan mengunduh paket kode sumber **SQLite amalgamation** secara otomatis.
-> - Di macOS, skrip akan mendeteksi compiler `clang`. Jika belum terpasang, skrip otomatis memicu pop-up instalasi Command Line Tools resmi dari Apple via perintah `xcode-select --install`.
-> - Di Windows, skrip secara otomatis mengunduh compiler GCC portable **w64devkit** ke dalam direktori lokal `external/w64devkit`.
+#### 🍏 macOS / 🐧 Linux
+Gunakan `Makefile` untuk manajemen daur hidup kompilasi:
+1. **Pasang Dependensi**: `make install` (mengunduh SDL3 & SQLite ke direktori lokal).
+2. **Kompilasi Proyek**: `make build` (menghasilkan eksekutabel di `bin/spotlight_search`).
+3. **Jalankan Aplikasi**: `make run`
+4. **Bersihkan Build**: `make clean`
 
-#### 3. Kompilasi Proyek (`make build`)
-Kompilasi seluruh kode sumber C menjadi file biner eksekutabel:
-```bash
-make build
-```
-Proses ini akan menghasilkan file eksekutabel bernama `spotlight_search` di dalam direktori `bin/`.
+---
 
-#### 4. Jalankan Aplikasi (`make run`)
-Eksekusi program secara langsung melalui terminal Anda:
-```bash
-make run
-```
+#### 🪟 Windows (Orkestrasi Otomatis & Penjalanan Ulang via `run_windows.bat`)
 
-#### 5. Bersihkan Hasil Build (`make clean`)
-Menghapus file-file sementara hasil kompilasi agar direktori kembali bersih:
-```bash
-make clean
-```
+Untuk Windows, Anda tidak perlu memasang compiler GCC secara manual. Repositori telah dilengkapi dengan skrip orkestrasi otomatis **`run_windows.bat`** di direktori utama:
+
+1. **Jalankan Skrip Orkestrasi**:
+   Buka Command Prompt atau PowerShell di direktori proyek, lalu jalankan:
+   ```cmd
+   run_windows.bat
+   ```
+2. **Cara Kerja Skrip**:
+   - Memeriksa kelengkapan compiler lokal portable **w64devkit** (GCC) di `external/w64devkit`. Jika belum ada, skrip akan mengunduh dan mengekstraknya secara otomatis.
+   - Memeriksa kelengkapan SDK **SDL3** dan source code **SQLite3**. Jika belum siap, skrip mengunduhnya secara otomatis ke folder `external/`.
+   - Mengompilasi seluruh kode sumber secara otomatis dan menyalin file eksekutabel hasil kompilasi ke direktori `bin/spotlight_search.exe`.
+3. **Menjalankan Program**:
+   Setelah build selesai, jalankan file hasil kompilasi:
+   ```cmd
+   bin\spotlight_search.exe
+   ```
+4. **Kompilasi Ulang**:
+   Jika Anda melakukan perubahan kode sumber, cukup jalankan kembali `run_windows.bat`. Skrip ini akan melakukan kompilasi ulang secara cepat karena semua compiler dan library sudah terpasang secara lokal.
 
 ---
 
