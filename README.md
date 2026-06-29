@@ -19,14 +19,14 @@ Berikut adalah diagram alur data dan interaksi antarmuka pengguna pada sistem Sp
 graph TD
     User["Pengguna (Keyboard/Mouse)"] -->|1. Ketik Query / Navigasi| UI["UI Layer (input.c / ui.c)"]
     UI -->|2. Update Query| State["App State (state.c)"]
-    State -->|3. Debounced Search (100-200ms)| Search["Search Engine (search.c)"]
+    State -->|"3. Debounced Search (100-200ms)"| Search["Search Engine (search.c)"]
     Search -->|4. Kueri Hasil Terbaik| SQLite["SQLite DB (sqlite.c)"]
     Indexer["Background Indexer (indexer.c)"] -->|Scan Filesystem| SQLite
     Search -->|5. Simpan Hasil Pilihan| State
     UI -->|6. Minta Ikon File| Icon["Icon Cache (icon_cache.c)"]
     Icon -->|7. Miss? Ekstrak Native| NativeOS["Native OS API (NSWorkspace / Win32)"]
     UI -->|8. Render Teks/Bentuk| Render["SDL3 Renderer (gl_render.c / draw2d.c)"]
-    Render -->|9. Swap Buffer (Tampilkan)| Screen["Overlay Window (app.c)"]
+    Render -->|"9. Swap Buffer (Tampilkan)"| Screen["Overlay Window (app.c)"]
 ```
 
 ---
