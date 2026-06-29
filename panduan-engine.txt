@@ -1,44 +1,44 @@
-FINAL PROJECT PLAN — CROSS-PLATFORM SPOTLIGHT CLONE
-C + SDL2/SDL3 + OPENGL + SQLITE + OS ICONS
+PANDUAN MESIN UTAMA (ENGINE) — SPOTLIGHT SEARCH CLONE
+C + SDL3 + SQLITE + NATIVE OS ICONS & TEXT
 
 ==================================================
 1. VISI PROYEK
 ==================================================
-Membangun aplikasi Spotlight Search seperti macOS:
-- Dibuka dengan hotkey (Ctrl+Space / Cmd+Space)
-- UI overlay (search bar + result list)
-- Search real-time dari database
-- Icon diambil langsung dari OS (native icons)
-- Cross-platform: Windows / Linux / macOS
+Membangun aplikasi Spotlight Search minimalis bergaya macOS:
+- Menampilkan jendela overlay pencarian bergaya Spotlight secara langsung saat dijalankan.
+- Tampilan overlay melayang (search bar di atas dan dropdown daftar hasil di bawah).
+- Pencarian data secara real-time dari database lokal.
+- Rendering ikon asli sistem berkas secara dinamis dari sistem operasi (native icons).
+- Portabilitas lintas platform (macOS / Windows / Linux).
 
 ==================================================
-2. TEKNOLOGI
+2. TEKNOLOGI UTAMA
 ==================================================
 
-CORE LANGUAGE:
-- C
+BAHASA UTAMA:
+- C (C99 / C11)
 
-WINDOW + INPUT:
-- SDL2 / SDL3
+WINDOW, EVENT & INPUT MANAGEMENT:
+- SDL3 (Simple DirectMedia Layer 3.0)
 
-RENDERING:
-- OpenGL
+GRAPHICS RENDERING ENGINE:
+- SDL_Renderer (2D hardware-accelerated rendering bawaan SDL3, otomatis memilih backend Metal di macOS, Direct3D di Windows, dst).
 
-DATABASE:
-- SQLite
+DATABASE ENGINE:
+- SQLite3 (Penyimpanan database kueri lokal cepat).
 
-OS INTEGRATION:
-- Windows API (Win32)
-- Linux freedesktop / .desktop
-- macOS Cocoa/LaunchServices
+INTEGRASI SISTEM OPERASI (NATIVE BACKENDS):
+- Windows: Win32 API (SHGetFileInfoW / ExtractIconExW)
+- macOS: Cocoa Framework (NSWorkspace / NSImage / NSBitmapImageRep)
+- Linux: Desktop Entry Spec (.desktop) & Icon Theme Spec
 
 ==================================================
-3. ARSITEKTUR SISTEM
+3. ARSITEKTUR ALUR DATA (DATA FLOW)
 ==================================================
 
                 ┌─────────────────────┐
                 │   SDL INPUT LAYER   │
-                │ hotkey + keyboard   │
+                │  input + keyboard   │
                 └─────────┬───────────┘
                           ↓
                 ┌─────────────────────┐
@@ -47,226 +47,167 @@ OS INTEGRATION:
                 └─────────┬───────────┘
                           ↓
         ┌─────────────────────────────────┐
-        │        SEARCH ENGINE           │
-        │ SQLite + filtering logic       │
-        └─────────┬──────────────────────┘
+        │        SEARCH ENGINE            │
+        │ SQLite + filtering (debounced)  │
+        └─────────┬───────────────────────┘
                           ↓
         ┌─────────────────────────────────┐
-        │    ICON ABSTRACTION LAYER      │
-        │ get_system_icon(path)          │
-        └─────────┬──────────────────────┘
+        │    ICON ABSTRACTION LAYER       │
+        │ icon_get_native_texture()       │
+        └─────────┬───────────────────────┘
                           ↓
         ┌─────────────────────────────────┐
-        │  OS ICON BACKEND (PLATFORM)    │
-        │ Win / Linux / macOS           │
-        └─────────┬──────────────────────┘
+        │  OS ICON BACKEND (PLATFORM)     │
+        │ Win32 (HICON) / Cocoa (NSImage) │
+        └─────────┬───────────────────────┘
                           ↓
                 ┌─────────────────────┐
-                │  OPENGL RENDERER    │
+                │   SDL_RENDERER      │
                 │ UI + icon + text    │
                 └─────────────────────┘
 
 ==================================================
-4. DATABASE DESIGN (SQLITE)
+4. RANCANGAN DATABASE (SQLITE)
 ==================================================
 
-TABLE: items
-
+TABEL UTAMA: items
+Menampung seluruh daftar indeks file dan aplikasi yang siap cari.
+```sql
 CREATE TABLE items (
-    id INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,             -- Nama pendek aplikasi atau file (misal: "Spotify")
+    path TEXT,             -- Path absolut ke file (misal: "/Applications/Spotify.app")
+    type TEXT,             -- Tipe berkas ("app", "file", "directory")
+    icon_handle TEXT,      -- Token pengenal ikon (cached id)
+    platform TEXT          -- Target platform ("mac", "windows", "linux", "all")
+);
+```
+
+TABEL PINTASAN: shortcuts
+Menampung daftar pintasan default saat kolom kueri masih kosong.
+```sql
+CREATE TABLE shortcuts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT,
     path TEXT,
     type TEXT,
-    icon_handle TEXT,
     platform TEXT
 );
-
-CATATAN:
-- icon_handle = hasil mapping OS icon (cached id / texture id)
-- platform = windows/linux/mac/all
+```
 
 ==================================================
-5. STARTUP FLOW
+5. ALUR STARTUP (STARTUP FLOW)
 ==================================================
 
-1. Init SDL2 + OpenGL window
-2. Init SQLite DB
-3. FIRST RUN ONLY:
-    - scan file system
-    - extract OS icons
-    - store into SQLite
-4. Build icon cache (OpenGL textures)
-5. Enter main loop
+1. Inisialisasi subsistem video SDL3 (`SDL_Init`).
+2. Membuat jendela borderless (`SDL_CreateWindow`).
+3. Menginisialisasi `SDL_Renderer` berakselerasi hardware.
+4. Membuka koneksi database SQLite (`db/spotlight.db`).
+5. **Hanya pada First-Run**:
+    - Membaca skema tabel dari `src/db/schema.sql`.
+    - Memicu background indexer memindai filesystem (`indexer.c`).
+    - Menyimpan hasil pemindaian ke tabel `items`.
+6. Memuat cache awal tekstur GPU untuk ikon fallback.
+7. Memasuki Event Loop utama aplikasi.
 
 ==================================================
-6. MAIN LOOP FLOW
+6. EVENT LOOP UTAMA (MAIN LOOP)
 ==================================================
 
-while (running):
-
-    SDL_PollEvent()
-
-    INPUT HANDLING:
-        - Ctrl+Space toggle UI
-        - typing query
-        - navigation ↑ ↓
-        - enter select
-
-    IF query changed:
-        → SQLite search update (debounced)
-
-    RENDER:
-        - background overlay
-        - search bar
-        - result list
-        - OS icon (cached texture)
-        - highlight selection
-
-    SDL_GL_SwapWindow()
+```c
+while (is_running) {
+    SDL_PollEvent(&event);
+    
+    // 1. INPUT HANDLING
+    // - Deteksi pengetikan huruf -> perbarui kueri
+    // - Deteksi tombol panah ↑ ↓ -> pindahkan baris terpilih
+    // - Deteksi Enter -> jalankan berkas secara native
+    // - Deteksi ESC -> sembunyikan/keluar aplikasi
+    
+    // 2. SEARCH UPDATE (DEBOUNCED)
+    if (query_changed) {
+        // Tunggu jeda diam 100-200ms sebelum melempar kueri SQL
+        // Kueri: WHERE name LIKE '%query%' LIMIT 10
+        // Hasil diurutkan berdasarkan ranking kedekatan prefix
+    }
+    
+    // 3. RENDERING FRAME
+    // - Clear screen (Set latar belakang transparan)
+    // - Gambar outer border & inner background melengkung (rounded rect)
+    // - Gambar search bar, kursor berkedip, teks, & tombol plus (+)
+    // - Gambar dropdown list (sorotan highlight baris + ikon native)
+    
+    SDL_RenderPresent(renderer);
+}
+```
 
 ==================================================
-7. SEARCH ENGINE (SQLITE)
+7. MESIN PENCARI (SEARCH ENGINE)
 ==================================================
 
-QUERY:
-
-SELECT * FROM items
-WHERE name LIKE '%' || query || '%'
-AND (platform = current OR platform = 'all')
+KUERI SQL UTAMA:
+```sql
+SELECT id, name, path, type, platform FROM items
+WHERE name LIKE ? AND (platform = ? OR platform = 'all')
 LIMIT 10;
+```
 
-RULE:
-- query hanya saat input berubah
-- tidak boleh tiap frame
-
-==================================================
-8. ICON SYSTEM (OS NATIVE)
-==================================================
-
-PRINSIP:
-- ICON diambil dari OS (bukan PNG manual)
-- hanya saat indexing (startup / update)
-
-FLOW:
-
-file path
-   ↓
-OS API extract icon
-   ↓
-raw pixel buffer
-   ↓
-OpenGL texture
-   ↓
-cache (icon_id → texture)
+ATURAN OPTIMASI:
+- Pencarian database mutlak tidak boleh dijalankan di setiap frame rendering.
+- Harus melewati mekanisme debouncing waktu mengetik untuk mencegah *I/O block*.
 
 ==================================================
-9. PLATFORM IMPLEMENTATION
-
-WINDOWS:
-- WinAPI (ExtractIconEx / SHGetFileInfo)
-
-LINUX:
-- .desktop file + icon theme lookup
-
-MACOS:
-- NSWorkspace / LaunchServices
-
-==================================================
-10. ICON CACHE SYSTEM
+8. PENANGANAN IKON NATIVE OS
 ==================================================
 
-typedef struct {
-    char key[256];
-    unsigned int texture_id;
-} IconCache;
-
-RULE:
-- load sekali
-- reuse di semua render frame
-- jangan reload saat runtime
+PRINSIP EKSTRAKSI:
+- Ikon diambil secara native sesuai sistem operasi secara asinkron/ditempat.
+- Di macOS: `NSWorkspace` -> `NSImage` -> rasterisasi bitmap RGBA 32x32 -> `SDL_Texture`.
+- Di Windows: `SHGetFileInfoW` -> `HICON` -> bitmap bits RGBA 32x32 -> `SDL_Texture`.
+- Untuk mencegah overhead FPS drop, tekstur yang berhasil dibuat langsung di-cache ke dalam `icon_cache.c` (peta path -> `SDL_Texture*`).
 
 ==================================================
-11. HOTKEY SYSTEM
+9. PENANGANAN FONT & HURUF NATIVE
 ==================================================
 
-SDL INPUT ONLY (SAFE DESIGN):
-
-Ctrl + Space → toggle UI
-
-MAC OPTIONAL:
-Cmd + Space (compile flag)
-
-==================================================
-12. RENDERING (OPENGL)
-==================================================
-
-UI ELEMENTS:
-- overlay background
-- search bar rectangle
-- text input
-- result rows
-- icon + label
-- selection highlight
-
-STRATEGY:
-- simple 2D rendering
-- no complex shader required
+PRINSIP RENDERING TEKS:
+- Proyek ini tidak menggunakan pemetaan atlas karakter ASCII secara manual karena keterbatasan karakter dan tampilan yang kurang halus.
+- Mesin menggunakan **Native OS Text Rendering** (`platform_text_macos.m` / dst):
+  - Mengonversi string C ke UTF-8 string native (seperti `NSString`).
+  - Menggunakan font sistem bawaan OS (misalnya **San Francisco 20pt** di macOS).
+  - Merender teks dengan antialiasing native OS ke dalam buffer bitmap.
+  - Membawa buffer tersebut ke `SDL_Surface` lalu menyalinnya ke memori GPU sebagai `SDL_Texture`.
+- Hal ini menjamin tampilan teks sangat premium, tajam, dan mendukung berbagai macam karakter khusus Unicode secara luas.
 
 ==================================================
-13. HAL YANG WAJIB DIHINDARI
+10. TATA LETAK UI & SHAPES KUSTOMISASI
 ==================================================
 
-X query SQLite setiap frame
-X scan filesystem terus menerus
-X load icon setiap render
-X campur OS logic ke core engine
-X UI logic bercampur dengan DB logic
+UKURAN WINDOW & TATA LETAK:
+- Search Bar Utama: Tinggi 50px di bagian atas jendela.
+- Tinggi Baris List Dropdown: 40px per hasil pencarian.
+- Ukuran Ikon: 32x32 piksel, digambar di sisi kiri hasil (x=24).
+- Batas Tepi (Padding): 16px untuk batas teks dari tepi kiri.
 
 ==================================================
-14. OPTIMASI WAJIB
+11. HAL YANG WAJIB DIHINDARI (ANTI-PATTERNS)
 ==================================================
 
-- debounce input (100–200ms)
-- cache SQLite results
-- cache icon textures
-- preload data saat startup
+X Melakukan kueri database SQLite pada setiap frame render loop.
+X Memindai filesystem (*filesystem scanning*) terus menerus saat aplikasi aktif.
+X Mengurai berkas ikon dari disk atau memanggil API ekstraksi OS di setiap frame render.
+X Menulis ulang/memetakan huruf per karakter menggunakan ASCII bitmap buatan sendiri.
+X Mencampuradukkan kode backend platform OS ke dalam logika mesin utama.
 
 ==================================================
-15. IMPLEMENTATION ROADMAP
+12. OPTIMASI PERFORMA
 ==================================================
 
-PHASE 1:
-- SDL window + OpenGL context
-
-PHASE 2:
-- UI toggle (Ctrl+Space)
-
-PHASE 3:
-- input system + text rendering
-
-PHASE 4:
-- SQLite indexing + search
-
-PHASE 5:
-- result rendering UI
-
-PHASE 6:
-- OS icon extraction + caching
-
-PHASE 7:
-- polish + smooth UX
+- **Debounce Input**: Penundaan pemrosesan input 100-200ms.
+- **Icon Texture Caching**: Menggunakan memori GPU untuk menyimpan cache tekstur ikon.
+- **Preloading**: Validasi skema database di startup.
+- **Dynamic Resize**: Mengatur tinggi jendela SDL secara dinamis hanya ketika hasil kueri bertambah atau berkurang.
 
 ==================================================
-16. TARGET NILAI
-==================================================
-
-DINILAI DARI:
-✓ Graphics pipeline (OpenGL)
-✓ Input system (SDL)
-✓ Data persistence (SQLite)
-✓ System integration (OS icons)
-✓ Architecture separation
-
-==================================================
-END OF FINAL PLAN
+END OF FILE
 ==================================================

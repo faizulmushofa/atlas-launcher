@@ -1,250 +1,238 @@
-# Cross-Platform Spotlight Clone (C + SDL3 + SDL_GPU + SQLite)
+# Cross-Platform Spotlight Clone
 
-Repositori ini berisi implementasi proyek **Spotlight Search Clone** menggunakan bahasa pemrograman **C**, **SDL3** untuk manajemen window dan input, **SDL_GPU** (fitur GPU API modern bawaan SDL3) untuk rendering berakselerasi perangkat keras, dan **SQLite** untuk basis data pencarian real-time yang cepat.
+[![C Language](https://img.shields.io/badge/Language-C99%20%2F%20C11-blue?logo=c&logoColor=white)](https://en.cppreference.com/w/c)
+[![SDL3](https://img.shields.io/badge/SDL-3.0-brightgreen?logo=sdl&logoColor=white)](https://www.libsdl.org)
+[![SQLite](https://img.shields.io/badge/SQLite-3-blue?logo=sqlite&logoColor=white)](https://www.sqlite.org)
+[![CMake](https://img.shields.io/badge/CMake-3.14+-red?logo=cmake&logoColor=white)](https://cmake.org)
 
-Aplikasi ini dapat dibuka secara instan menggunakan hotkey global (`Ctrl + Space` atau `Cmd + Space` di macOS) dan memproses pencarian file/aplikasi secara real-time langsung dari basis data lokal dengan mengambil ikon asli langsung dari sistem operasi (*native OS icons*).
+**Cross-Platform Spotlight Clone** adalah aplikasi antarmuka pencarian cepat (*desktop overlay launcher*) berbasis bahasa pemrograman **C**, **SDL3** untuk manajemen jendela, event, dan input, serta **SQLite** untuk database pencarian lokal yang sangat cepat.
 
----
-
-## 1. Visi Proyek
-
-Membangun aplikasi Spotlight Search yang meniru perilaku macOS Spotlight:
-* **Hotkey Global**: UI overlay yang dipicu oleh hotkey (`Ctrl + Space` / `Cmd + Space`).
-* **UI Overlay**: Desain jendela mengambang minimalis dengan bar pencarian dan daftar hasil.
-* **Pencarian Real-Time**: Pencarian cepat dari basis data SQLite menggunakan kueri teroptimasi.
-* **Integrasi Ikon Native**: Mengambil ikon berkas asli langsung dari API sistem operasi.
-* **Multi-Platform**: Mendukung macOS (Cocoa/LaunchServices), Windows (Win32), dan Linux (freedesktop/.desktop).
+Aplikasi ini meniru antarmuka visual macOS Spotlight Search secara fungsional: melakukan pencarian real-time dengan pencocokan teroptimasi, serta merender hasil pencarian lengkap dengan ikon asli berkas dari sistem operasi (*native OS icons*).
 
 ---
 
-## 2. Teknologi
+## 🏗️ Arsitektur Hubungan Sistem
 
-* **Core Language**: C (C99/C11)
-* **Window, Input & Graphics**: SDL3 (menggunakan modul rendering modern **SDL_GPU**)
-* **Database**: SQLite3
-* **OS Integration (Native Icons & Hotkeys)**:
-  * **Windows**: Win32 API (`ExtractIconEx` / `SHGetFileInfo`)
-  * **macOS**: Cocoa / `NSWorkspace` / `LaunchServices`
-  * **Linux**: Freedesktop `.desktop` files & pencarian tema ikon sistem
+Berikut adalah diagram alur data dan interaksi antarmuka pengguna pada sistem Spotlight Clone:
 
----
-
-## 3. Struktur Direktori Proyek
-
-Struktur folder proyek ini diatur secara modular sesuai dengan standar arsitektur clean-code (sebagaimana ditentukan dalam `directory-structure.txt`):
-
-```text
-spotlight_search/
-├── CMakeLists.txt         # Konfigurasi sistem build CMake (Target: SDL3)
-├── Makefile               # Perintah pintas untuk kompilasi & eksekusi (make install/build/run)
-├── README.md              # Dokumentasi proyek ini
-├── .gitignore             # Mengabaikan file hasil kompilasi & cache IDE
-├── .clangd                # Konfigurasi untuk Intellisense editor (C/C++ clangd)
-├── database/
-│   ├── spotlight.db       # File database SQLite utama
-│   └── schema.sql         # Skema struktur tabel database
-├── assets/
-│   ├── shaders/
-│   │   ├── vertex.glsl    # GLSL Vertex Shader
-│   │   └── fragment.glsl  # GLSL Fragment Shader
-│   ├── fonts/
-│   │   └── default.ttf    # Font bawaan untuk rendering teks
-│   └── icons/
-│       └── default.png    # Ikon fallback jika ikon OS tidak ditemukan
-├── build/
-├── external/
-│   ├── sdl3/              # Kode sumber SDL3 (lokal per proyek)
-│   └── openGL/            # Pustaka/Loader OpenGL eksternal jika diperlukan
-└── src/
-    ├── main.c             # Titik masuk aplikasi (sangat tipis)
-    ├── core/
-    │   ├── app.c          # Manajemen window, loop utama, dan siklus hidup aplikasi
-    │   ├── app.h          
-    │   ├── state.c        # Pengelolaan state aplikasi (query, hasil pencarian)
-    │   ├── state.h        
-    │   └── config.h       # Makro konfigurasi statis (ukuran window, warna, dll)
-    ├── platform/
-    │   ├── platform.c     # Deteksi platform dan fungsi sistem operasi abstrak
-    │   ├── platform.h
-    │   ├── fs.c           # Operasi pembacaan sistem berkas
-    │   ├── fs.h
-    │   ├── hotkey.c       # Pendaftaran hotkey global level OS
-    │   └── hotkey.h
-    ├── db/
-    │   ├── sqlite.c       # Penghubung database SQLite
-    │   ├── sqlite.h
-    │   ├── indexer.c      # Background indexer untuk mendata file ke database
-    │   ├── indexer.h
-    │   └── schema.sql     # Skema database SQLite lokal
-    ├── search/
-    │   ├── search.c       # Logika kueri pencarian SQLite
-    │   ├── search.h
-    │   ├── ranking.c      # Algoritma perankingan hasil pencarian
-    │   └── ranking.h
-    ├── ui/
-    │   ├── ui.c           # Struktur antarmuka pengguna
-    │   ├── ui.h
-    │   ├── input.c        # Pemrosesan input teks
-    │   ├── input.h
-    │   ├── layout.c       # Penghitungan layout baris hasil
-    │   └── layout.h
-    ├── render/
-    │   ├── gl_renderer.c  # Pengaturan SDL_GPUDevice & swapchain target rendering
-    │   ├── gl_renderer.h
-    │   ├── shader.c       # Pembuat dan pengompilasi Shader GPU
-    │   ├── shader.h
-    │   ├── texture.c      # Pemuat pixel buffer ke OpenGL/GPU texture
-    │   ├── texture.h
-    │   ├── draw2d.c       # Fungsi utilitas penggambaran bentuk 2D primitive
-    │   └── draw2d.h
-    ├── icon/
-    │   ├── icon.c         # Interface utama ekstraksi ikon
-    │   ├── icon.h
-    │   ├── icon_os.c      # Implementasi spesifik OS untuk ekstraksi ikon
-    │   ├── icon_os.h
-    │   ├── icon_cache.c   # Cache texture GPU agar tidak memuat ulang ikon
-    │   └── icon_cache.h
-    └── utils/
-        ├── string.c       # Utilitas pemrosesan string C
-        ├── string.h
-        ├── logger.c       # Logging debug konsol
-        ├── logger.h
-        ├── timer.c        # Utilitas pengukuran waktu eksekusi
-        └── timer.h
+```mermaid
+graph TD
+    User["Pengguna (Keyboard/Mouse)"] -->|1. Ketik Query / Navigasi| UI["UI Layer (input.c / ui.c)"]
+    UI -->|2. Update Query| State["App State (state.c)"]
+    State -->|3. Debounced Search (100-200ms)| Search["Search Engine (search.c)"]
+    Search -->|4. Kueri Hasil Terbaik| SQLite["SQLite DB (sqlite.c)"]
+    Indexer["Background Indexer (indexer.c)"] -->|Scan Filesystem| SQLite
+    Search -->|5. Simpan Hasil Pilihan| State
+    UI -->|6. Minta Ikon File| Icon["Icon Cache (icon_cache.c)"]
+    Icon -->|7. Miss? Ekstrak Native| NativeOS["Native OS API (NSWorkspace / Win32)"]
+    UI -->|8. Render Teks/Bentuk| Render["SDL3 Renderer (gl_render.c / draw2d.c)"]
+    Render -->|9. Swap Buffer (Tampilkan)| Screen["Overlay Window (app.c)"]
 ```
 
 ---
 
-## 4. Desain Database (SQLite)
+## ⚡ Fitur Utama
 
-Tabel basis data utama bernama `items` dirancang untuk menampung indeks pencarian dengan struktur sebagai berikut:
-
-```sql
-CREATE TABLE items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,             -- Nama file atau aplikasi (misal: "Safari", "Notepad")
-    path TEXT,             -- Path lengkap file/aplikasi di sistem operasi
-    type TEXT,             -- Jenis item (misal: "app", "file", "directory")
-    icon_handle TEXT,      -- Token pengenal ikon (cached ID / path ikon)
-    platform TEXT          -- Target OS (windows, linux, mac, atau all)
-);
-```
-
-**Kueri Pencarian Utama (Search Query):**
-Pencarian dilakukan secara dinamis menggunakan klausa `LIKE` dengan batasan 10 hasil teratas:
-```sql
-SELECT * FROM items
-WHERE name LIKE '%' || :query || '%'
-AND (platform = :current_platform OR platform = 'all')
-LIMIT 10;
-```
+- 🔍 **Pencarian SQLite Real-Time**: Pencarian secepat kilat dengan pencocokan string terindeks dan kueri teroptimasi.
+- 🕒 **Sistem Debouncing Input**: Menunda eksekusi kueri SQLite selama 100-200ms setelah selesai mengetik untuk menghindari *disk overhead* yang membebani CPU.
+- 🎨 **Ekstraksi Ikon Native OS**: Mengambil ikon asli sistem berkas menggunakan Cocoa (`NSWorkspace`) di macOS dan Win32 API di Windows.
+- 💾 **GPU Texture Caching**: Mengubah pixel buffer ikon menjadi `SDL_Texture` sekali saja dan menyimpannya di memori GPU untuk rendering instan tanpa lag.
+- 🔤 **Native OS Text Rendering**: Merender font sistem secara dinamis dengan kualitas tinggi (*antialiasing* native OS) serta mendukung karakter Unicode (UTF-8) penuh secara luwes (menggantikan sistem pemetaan ASCII manual yang kaku).
 
 ---
 
-## 5. Arsitektur Sistem & Alur Kerja
+## 📁 Struktur Direktori & Tanggung Jawab
 
-### A. Arsitektur Data Flow
-```text
-┌─────────────────────┐
-│   SDL INPUT LAYER   │  -> Menangkap hotkey global & input pengetikan (SDL3)
-└─────────┬───────────┘
-          ↓
-┌─────────────────────┐
-│     APP STATE       │  -> Menyimpan query pencarian & status UI
-└─────────┬───────────┘
-          ↓
-┌─────────────────────┐
-│    SEARCH ENGINE    │  -> Melakukan kueri ke SQLite & ranking hasil (debounced)
-└─────────┬───────────┘
-          ↓
-┌─────────────────────┐
-│   ICON ABSTRACTION  │  -> Menjembatani permintaan ikon file ke sistem operasi
-└─────────┬───────────┘
-          ↓
-┌─────────────────────┐
-│   OS ICON BACKEND   │  -> Mengambil raw pixel icon melalui API native OS
-└─────────┬───────────┘
-          ↓
-┌─────────────────────┐
-│   SDL_GPU RENDERER  │  -> Menggambar UI, tekstur ikon, dan teks via GPU API
-└─────────────────────┘
+Struktur direktori proyek ini dirancang secara modular guna memisahkan tanggung jawab logika secara bersih:
+
+| Direktori / Berkas | Tanggung Jawab (Responsibility) | File Kunci Utama |
+| :--- | :--- | :--- |
+| [bin/](bin/) | Menyimpan berkas biner eksekutabel hasil kompilasi. | `spotlight_search` |
+| [db/](db/) | Tempat penyimpanan basis data SQLite lokal. | `spotlight.db` |
+| [external/](external/) | Berisi kode sumber pihak ketiga yang dikelola secara lokal. | `sdl3/`, `sqlite3/` |
+| [scripts/](scripts/) | Berisi skrip otomatisasi build dan kompilasi lintas platform. | `build.sh`, `setup_compiler.sh` |
+| [src/core/](src/core/) | Manajemen siklus hidup aplikasi (startup, loop event, shutdown) dan state global. | `app.c`, `state.c` |
+| [src/db/](src/db/) | Penghubung SQLite dan background indexer pemindaian folder lokal. | `sqlite.c`, `indexer.c`, `schema.sql` |
+| [src/icon/](src/icon/) | Ekstraksi ikon dari API native OS serta manajemen cache tekstur GPU. | `icon.c`, `icon_cache.c`, `icon_os_macos.m` |
+| [src/platform/](src/platform/) | Fungsi pembungkus native OS (deteksi platform dan pembacaan file). | `detection.c`, `fs.c`, `platform.c` |
+| [src/render/](src/render/) | Penanganan inisialisasi renderer, gambar 2D primitive, dan tekstur teks native. | `gl_render.c`, `draw2d.c`, `platform_text_macos.m` |
+| [src/search/](src/search/) | Logika pencarian kueri SQLite dan algoritma ranking berdasarkan relevansi. | `search.c`, `ranking.c` |
+| [src/ui/](src/ui/) | Pemrosesan masukan keyboard, event cursor, dan rendering tata letak UI. | `ui.c`, `input.c` |
+
+
+---
+
+## 📜 Bagaimana Program Bekerja
+
+Aplikasi berjalan dengan mengikuti alur kerja terstruktur untuk menjamin efisiensi tinggi pada setiap bagian:
+
+### 1. Inisialisasi & Startup
+Saat aplikasi dijalankan, siklus berikut akan terjadi:
+- **SDL3 Initialization**: Sistem menginisialisasi subsistem video SDL3 dan membuat jendela borderless (`SDL_WINDOW_BORDERLESS`).
+- **GPU Renderer Binding**: Membuat objek `SDL_Renderer` berakselerasi perangkat keras yang otomatis memanfaatkan Metal (macOS) atau Direct3D (Windows) di latar belakang.
+- **Koneksi SQLite**: Membuka berkas `db/spotlight.db`. Pada jalannya aplikasi untuk pertama kali (*first-run*), program akan membuat struktur tabel berdasarkan `src/db/schema.sql` dan memicu **Background Indexer**.
+- **Background Indexing**: Program memindai folder sistem (`/Applications` di Mac) dan direktori pengguna secara asinkron untuk mendata file, path, tipe, dan platform ke database.
+- **Cache Preloading**: Menyiapkan struktur pencarian ikon GPU yang masih kosong.
+
+### 2. Siklus Event Loop
+Perulangan utama (`SDL_PollEvent`) menangani input pengguna secara responsif:
+- Menangkap ketikan huruf demi huruf dan memperbarui buffer query pencarian di `AppState`.
+- Mendeteksi penekanan tombol navigasi keyboard (panah `↑` dan `↓` untuk memindahkan pilihan baris, tombol `Enter` untuk mengeksekusi).
+- Tombol `ESC` atau klik di luar area jendela akan menyembunyikan/menutup aplikasi secara instan.
+
+### 3. Kueri Debounced & Perankingan
+Ketika teks query diinputkan, pencarian tidak langsung ditembakkan ke database pada setiap frame render (untuk mencegah lag pengetikan). Sebagai gantinya:
+- Sistem menunggu durasi diam pengetikan selama **100-200ms**.
+- Query dikirimkan ke SQLite: `SELECT ... FROM items WHERE name LIKE ? LIMIT 10`.
+- Hasil pencarian diurutkan menggunakan algoritma perankingan sederhana (`ranking.c`) untuk mengevaluasi kesamaan awalan huruf (prefix matching) dan panjang kata. 5 hasil terbaik disalin ke `AppState`.
+
+### 4. Ekstraksi Ikon Native
+Setiap baris hasil pencarian membutuhkan ikon aplikasi:
+- UI meminta tekstur ikon ke `icon_cache`.
+- Jika belum ter-cache (*cache miss*), program memanggil API native sistem operasi:
+  - **macOS**: Menggunakan Cocoa API `[[NSWorkspace sharedWorkspace] iconForFile:path]` untuk mengambil pointer `NSImage` biner dari ikon berkas. `NSImage` ini kemudian di-rasterisasi ke bitmap buffer RGBA berukuran 32x32 piksel secara native.
+  - **Windows**: Menggunakan Win32 API `SHGetFileInfoW` untuk memperoleh handle `HICON` yang kemudian disalin ke buffer piksel RGBA.
+- Buffer piksel mentah tersebut dikonversi menjadi `SDL_Surface` menggunakan `SDL_CreateSurfaceFrom` lalu diunggah ke GPU menjadi `SDL_Texture*` (`SDL_CreateTextureFromSurface`).
+- Tekstur ini disimpan permanen dalam cache untuk penggunaan ulang instan pada frame render berikutnya.
+
+### 5. Rendering Teks Native
+Untuk menggambar teks pencarian secara fleksibel tanpa keterbatasan ASCII:
+- Program menggunakan modul `platform_text` native OS.
+- Di macOS (`platform_text_macos.m`), teks query dikonversi menjadi `NSString` lalu digambar menggunakan objek `NSFont` sistem (**San Francisco 20pt**) dengan *antialiasing* native.
+- Hasil rasterisasi font berupa bitmap langsung dibungkus menjadi `SDL_Texture` siap gambar. Hal ini memungkinkan dukungan penuh karakter Unicode UTF-8 secara native.
+
+### 6. Eksekusi Peluncuran Aplikasi
+Saat baris hasil dipilih dan tombol `Enter` tekanan, aplikasi memanggil fungsi native platform:
+- macOS: Menggunakan API Cocoa untuk membuka file/aplikasi terkait di background secara bersih.
+- Windows: Menggunakan instruksi `ShellExecuteA` untuk menjalankan berkas.
+
+---
+
+## 🚀 Panduan Build & Eksekusi (Clone-to-Run)
+
+### Prasyarat Sistem
+- **macOS**: Memiliki compiler `clang` (biasanya terpasang otomatis saat memasang Xcode Command Line Tools).
+- **Windows**: Direkomendasikan memiliki `Git` dan compiler GCC.
+- **Linux**: Memiliki compiler `gcc`/`clang` dan `cmake`.
+
+### Langkah-Langkah
+
+#### 1. Kloning Repositori
+Jalankan perintah clone untuk mengunduh berkas proyek ke komputer Anda:
+```bash
+git clone https://github.com/faizulmushofa/atlas-launcher.git
+cd spotlight_search
 ```
 
-### B. Startup Flow
-1. Menginisialisasi subsistem **SDL3** (`SDL_Init(SDL_INIT_VIDEO)`).
-2. Membuat window utama dan mengklaim window tersebut ke perangkat GPU (`SDL_CreateGPUDevice` & `SDL_ClaimWindowForGPUDevice`).
-3. Membuka koneksi ke database SQLite (`spotlight.db`).
-4. **First-Run Only**: Memindai filesystem lokal, mengekstrak informasi ikon, dan menyimpannya ke database SQLite.
-5. Membuat cache tekstur GPU awal untuk ikon fallback.
-6. Memasuki loop utama (*main loop*).
-
-### C. Main Loop Flow
-Pada setiap iterasi/frame:
-1. Mendeteksi event SDL3 (`SDL_PollEvent`).
-2. Jika hotkey `Ctrl+Space`/`Cmd+Space` ditekan, tampilkan/sembunyikan (toggle) overlay UI.
-3. Jika teks kueri berubah:
-   * Jalankan kueri pencarian ke database SQLite (dilakukan secara **debounced** 100-200ms).
-4. Melakukan proses render grafis menggunakan SDL_GPU:
-   * Mengambil *Command Buffer* (`SDL_AcquireGPUCommandBuffer`).
-   * Mengambil tekstur swapchain aktif milik window (`SDL_AcquireGPUSwapchainTexture`).
-   * Memulai *Render Pass* (`SDL_BeginGPURenderPass`) dengan membersihkan warna latar belakang menjadi warna gelap solid.
-   * Melakukan rendering UI (daftar baris hasil pencarian beserta ikonnya).
-   * Mengakhiri *Render Pass* (`SDL_EndGPURenderPass`) dan menyerahkan antrean perintah ke GPU (`SDL_SubmitGPUCommandBuffer`).
-
----
-
-## 6. Aturan Optimasi & Hal yang Wajib Dihindari
-
-> [!CAUTION]
-> **Hal yang Wajib Dihindari (X):**
-> * **X** Melakukan kueri database SQLite pada setiap frame render.
-> * **X** Melakukan pemindaian filesystem (*filesystem scanning*) terus-menerus saat aplikasi aktif.
-> * **X** Melakukan ekstraksi/pemuatan ikon dari sistem operasi pada setiap frame render.
-> * **X** Mencampurkan kode spesifik OS (platform logic) ke dalam core engine aplikasi.
-> * **X** Mencampurkan logika tampilan antarmuka (UI logic) dengan database logic.
-
-> [!TIP]
-> **Aturan Optimasi Bawaan (✓):**
-> * **✓ Debounce Input**: Kueri pencarian ditunda selama 100-200ms setelah mengetik untuk menghindari overhead kueri SQLite.
-> * **✓ Icon Caching**: Pixel buffer ikon yang diekstrak dari OS langsung diubah menjadi Tekstur GPU sekali saja, lalu disimpan dalam *texture cache* untuk digambar ulang secara instan.
-> * **✓ Preloading**: Data penting di-load dari SQLite saat startup.
-
----
-
-## 7. Panduan Build & Eksekusi
-
-### A. Unduh Dependensi SDL3 secara Otomatis
-Jalankan perintah ini dari root direktori proyek (`spotlight_search`) untuk mengunduh kode sumber SDL3 secara lokal:
+#### 2. Pasang Dependensi (`make install`)
+Jalankan perintah berikut untuk mengunduh SDL3 dan SQLite ke folder lokal secara otomatis:
 ```bash
 make install
 ```
+> [!NOTE]  
+> - Skrip instalasi secara otomatis mendeteksi ketersediaan SQLite di komputer Anda. Jika tidak ditemukan, skrip akan mengunduh paket kode sumber **SQLite amalgamation** secara otomatis.
+> - Di macOS, skrip akan mendeteksi compiler `clang`. Jika belum terpasang, skrip otomatis memicu pop-up instalasi Command Line Tools resmi dari Apple via perintah `xcode-select --install`.
+> - Di Windows, skrip secara otomatis mengunduh compiler GCC portable **w64devkit** ke dalam direktori lokal `external/w64devkit`.
 
-### B. Kompilasi (Build) Proyek
+#### 3. Kompilasi Proyek (`make build`)
+Kompilasi seluruh kode sumber C menjadi file biner eksekutabel:
 ```bash
 make build
 ```
+Proses ini akan menghasilkan file eksekutabel bernama `spotlight_search` di dalam direktori `bin/`.
 
-### C. Jalankan Aplikasi (Run)
+#### 4. Jalankan Aplikasi (`make run`)
+Eksekusi program secara langsung melalui terminal Anda:
 ```bash
 make run
 ```
 
-### D. Bersihkan Direktori Build (Clean)
+#### 5. Bersihkan Hasil Build (`make clean`)
+Menghapus file-file sementara hasil kompilasi agar direktori kembali bersih:
 ```bash
 make clean
 ```
 
 ---
 
-## 8. Konfigurasi Ukuran Window & Tampilan
+## ⚙️ Panduan Kustomisasi Rinci
 
-Anda dapat mengatur dimensi lebar (width) dan tinggi (height) window pada berkas **`src/core/app.c`** di bagian pembuatan window (pemanggilan fungsi `SDL_CreateWindow` sekitar baris 27-32):
+Anda dapat dengan mudah mengubah tampilan dan dimensi antarmuka Spotlight Clone dengan memodifikasi nilai konfigurasi statis pada berkas kode sumber.
 
+### 1. Mengubah Ukuran Lebar & Tinggi Default Window
+Buka berkas **[src/core/app.c](src/core/app.c)** pada fungsi `app_run()`. Anda akan melihat konfigurasi lebar default:
 ```c
     app_window = SDL_CreateWindow(
         "Spotlight Search",
-        800,  // <--- Lebar window (Width)
-        100,  // <--- Tinggi window (Height)
-        SDL_WINDOW_BORDERLESS // <--- Membuat window tidak memiliki frame/bingkai bawaan OS
+        800,  // <--- Ubah nilai 800 ini untuk menyesuaikan lebar window (pixel)
+        100,  // Tinggi awal window (akan disesuaikan secara dinamis oleh dropdown)
+        SDL_WINDOW_BORDERLESS
     );
 ```
+Untuk kustomisasi tinggi dropdown hasil pencarian, sesuaikan perhitungannya di baris berikut pada berkas yang sama (`src/core/app.c`):
+```c
+        // Hitung tinggi target window secara dinamis berdasarkan jumlah baris hasil
+        int target_h = 50; // Tinggi search bar utama (50px)
+        AppState* state = state_get();
+        if (state && state->result_count > 0) {
+            // 50px (search bar) + (jumlah hasil * tinggi baris 40px) + offset 10px
+            target_h = 50 + (state->result_count * 40) + 10; 
+        }
+```
+
+### 2. Mengubah Radius Sudut Melengkung (Rounded Corners)
+Untuk menyesuaikan tingkat kelengkungan sudut jendela utama, buka berkas **[src/render/gl_render.c](src/render/gl_render.c)** di dalam fungsi `gl_render_frame()`:
+```c
+    // Gambar Border Luar (Radius tumpul luar 12px)
+    draw2d_fill_rounded_rect(g_renderer, 0, 0, w, h, 12, border_color);
+
+    // Gambar Latar Belakang (Radius tumpul dalam 11px, inset 1px)
+    draw2d_fill_rounded_rect(g_renderer, 1, 1, w - 2, h - 2, 11, bg_color);
+```
+
+### 3. Mengubah Skema Warna Tema (Warna Latar & Border)
+Skema warna didefinisikan menggunakan format `SDL_Color` (RGBA, nilai `0` hingga `255`).
+- **Warna Latar Belakang & Border**: Terletak di **[src/render/gl_render.c](src/render/gl_render.c)** (`gl_render_frame()`):
+  ```c
+  SDL_Color border_color = { 255, 255, 255, 255 }; // Putih padat
+  SDL_Color bg_color = { 20, 24, 30, 255 };       // Gelap abu-biru solid (Dark Theme)
+  ```
+- **Warna Teks & Elemen UI**: Terletak di **[src/ui/ui.c](src/ui/ui.c)** (`ui_render()`):
+  ```c
+  SDL_Color color_active = { 240, 240, 245, 255 };       // Teks aktif (Putih perak)
+  SDL_Color color_placeholder = { 90, 100, 120, 255 };   // Teks placeholder (Abu-abu teredam)
+  SDL_Color color_cursor = { 64, 156, 255, 255 };        // Kursor mengetik (Biru Mac Style)
+  SDL_Color color_divider = { 50, 55, 65, 255 };         // Garis batas pemisah dropdown
+  SDL_Color color_highlight = { 64, 156, 255, 120 };     // Sorotan baris terpilih (Biru transparan)
+  ```
+
+### 4. Mengubah Tinggi Baris & Radius Highlight Dropdown
+Buka berkas **[src/ui/ui.c](src/ui/ui.c)** pada fungsi `ui_render()`:
+- **Tinggi Baris (Row Height)**:
+  ```c
+  int row_y = 50 + i * 40; // i * 40 menandakan tinggi tiap baris adalah 40px. Ubah 40 jika ingin lebih renggang.
+  ```
+- **Tinggi & Radius Sorotan Highlight**:
+  ```c
+  // w - 16 (margin kanan-kiri), tinggi sorotan 32px, radius kelengkungan sudut highlight 6px
+  draw2d_fill_rounded_rect(renderer, 8, row_y + 4, window_w - 16, 32, 6, color_highlight);
+  ```
+
+### 5. Mengubah Batasan Limit Hasil Pencarian
+Secara default, aplikasi menyimpan cache tekstur dan menyalin maksimal 5 hasil pencarian ke state utama. Jika ingin merubah batas limit pencarian ini menjadi 10 item:
+1. Buka berkas **[src/ui/ui.h](src/ui/ui.h)** atau struktur array di **[src/ui/ui.c](src/ui/ui.c)**, sesuaikan ukuran cache array dari `5` ke `10`:
+   ```c
+   static SDL_Texture* g_result_name_textures[10] = {NULL};
+   static int g_result_name_w[10] = {0};
+   static int g_result_name_h[10] = {0};
+   static SDL_Texture* g_result_type_textures[10] = {NULL};
+   // ... sesuaikan perulangan pembersihan & rendering dari i < 5 ke i < 10 di ui.c
+   ```
+2. Buka berkas **[src/core/state.h](src/core/state.h)** dan perbarui kapasitas maksimal hasil kueri pada struct `AppState` (biasanya dibatasi oleh array `SearchResult results[5]` diubah menjadi `[10]`).
+3. Buka berkas **[src/search/search.c](src/search/search.c)** dan ubah proses penyalinan data hasil pencarian kueri dari limit `5` menjadi `10`.
+
+---
+
+## 🧑‍💻 Penulis
+
+* **Faizul Mushofa** - [faizulmushofa](https://github.com/faizulmushofa)

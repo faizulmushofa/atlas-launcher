@@ -1,83 +1,75 @@
+Struktur Folder & Tanggung Jawab Direktori Spotlight Clone
+
+Berikut adalah tata letak berkas-berkas proyek Spotlight Search Clone beserta tanggung jawab arsitektural dari setiap folder dan modul:
+
 spotlight_search/
-├── CMakeLists.txt
-├── README.md
-|__ external/
-|   |__sdl2/
-|   |__openGL/
-|
-├── database/
-│   ├── spotlight.db
-│   └── schema.sql
-├── assets/
-│   ├── shaders/
-│   │   ├── vertex.glsl
-│   │   └── fragment.glsl
-│   ├── fonts/
-│   │   └── default.ttf
-│   └── icons/
-│       └── default.png
-├── build/
-├── src/
-│   ├── main.c
-│   │
-│   ├── core/
-│   │   ├── app.c
-│   │   ├── app.h
-│   │   ├── state.c
-│   │   ├── state.h
-│   │   └── config.h
-│   │
-│   ├── platform/
-│   │   ├── platform.c
-│   │   ├── platform.h
-│   │   ├── fs.c
-│   │   ├── fs.h
-│   │   ├── hotkey.c
-│   │   └── hotkey.h
-│   │
-│   ├── db/
-│   │   ├── sqlite.c
-│   │   ├── sqlite.h
-│   │   ├── indexer.c
-│   │   ├── indexer.h
-│   │   └── schema.sql
-│   │
-│   ├── search/
-│   │   ├── search.c
-│   │   ├── search.h
-│   │   ├── ranking.c
-│   │   └── ranking.h
-│   │
-│   ├── ui/
-│   │   ├── ui.c
-│   │   ├── ui.h
-│   │   ├── input.c
-│   │   ├── input.h
-│   │   ├── layout.c
-│   │   └── layout.h
-│   │
-│   ├── render/
-│   │   ├── gl_renderer.c
-│   │   ├── gl_renderer.h
-│   │   ├── shader.c
-│   │   ├── shader.h
-│   │   ├── texture.c
-│   │   ├── texture.h
-│   │   ├── draw2d.c
-│   │   └── draw2d.h
-│   │
-│   ├── icon/
-│   │   ├── icon.c
-│   │   ├── icon.h
-│   │   ├── icon_os.c
-│   │   ├── icon_os.h
-│   │   ├── icon_cache.c
-│   │   └── icon_cache.h
-│   │
-│   └── utils/
-│       ├── string.c
-│       ├── string.h
-│       ├── logger.c
-│       ├── logger.h
-│       ├── timer.c
-│       └── timer.h
+├── CMakeLists.txt              # Konfigurasi CMake build system (Target: SDL3 & sqlite3_lib)
+├── Makefile                    # Pintasan command-line (make install, make build, make run, make clean)
+├── README.md                   # Dokumentasi proyek (fitur, cara kerja, kustomisasi, panduan clone-to-run)
+├── directory-structure.txt     # Berkas ini (peta struktur direktori proyek & tanggung jawab folder)
+├── panduan-engine.txt          # Panduan arsitektur alur data, kueri database, dan optimasi engine
+├── .gitignore                  # Berkas pengecualian pelacakan Git
+├── .clangd                     # Konfigurasi penganalisis bahasa C/C++ clangd
+│
+├── bin/                        # [Tanggung Jawab: Output Biner Eksekutabel]
+│   └── spotlight_search        # Hasil kompilasi program utama
+│
+├── db/                         # [Tanggung Jawab: Penyimpanan Basis Data SQLite]
+│   ├── .gitkeep                # Menjaga folder db tetap dilacak oleh Git
+│   └── spotlight.db            # Database SQLite lokal berisi indeks berkas/aplikasi
+│
+├── external/                   # [Tanggung Jawab: Manajemen Pustaka Pihak Ketiga (Local Library Vendor)]
+│   ├── sdl3/                   # Kode sumber pustaka SDL3 (cloned via git)
+│   └── sqlite3/                # Kode sumber SQLite3 amalgamation (cloned via git)
+│
+├── scripts/                    # [Tanggung Jawab: Otomatisasi Utilitas Sistem (Build & Setup Compiler)]
+│   ├── build.bat               # Skrip kompilasi & eksekusi Windows
+│   ├── build.sh                # Skrip kompilasi & eksekusi macOS / Linux
+│   ├── setup_compiler.bat      # Skrip setup compiler GCC portable (w64devkit) & dependensi di Windows
+│   └── setup_compiler.sh       # Skrip setup compiler clang & dependensi di macOS / Linux
+│
+└── src/                        # [Tanggung Jawab: Folder Utama Kode Sumber (Source Code Root)]
+    ├── main.c                  # Titik masuk aplikasi (sangat minimalis)
+    ├── LICENSE                 # Berkas Lisensi MIT (kode sumber)
+    │
+    ├── core/                   # [Tanggung Jawab: Manajemen Loop Utama & State Global]
+    │   ├── app.c               # Inisialisasi window/renderer SDL3, event loop, & siklus hidup aplikasi
+    │   ├── app.h               # Deklarasi fungsi siklus hidup aplikasi
+    │   ├── state.c             # Penyimpanan state pencarian global (query, results, selected index)
+    │   └── state.h             # Definisi tipe struktur AppState & SearchResult
+    │
+    ├── db/                     # [Tanggung Jawab: Manajemen Koneksi Database & Background Indexer]
+    │   ├── sqlite.c            # Pembungkus (wrapper) API SQLite3 (open, query, close)
+    │   ├── sqlite.h            # Deklarasi antarmuka SQLite
+    │   ├── indexer.c           # Pemindaian filesystem asinkron & perekaman data ke SQLite
+    │   ├── indexer.h           # Deklarasi antarmuka indexer
+    │   └── schema.sql          # Struktur skema tabel items dan shortcuts
+    │
+    ├── icon/                   # [Tanggung Jawab: Ekstraksi Ikon Lintas Platform & Caching GPU]
+    │   ├── icon.c              # Wrapper pemanggilan ekstraksi ikon sistem berdasarkan platform
+    │   ├── icon.h              # Deklarasi fungsi ekstraktor ikon
+    │   ├── icon_cache.c        # Hash table cache penyimpan SDL_Texture* agar rendering tidak lag
+    │   ├── icon_cache.h        # Deklarasi antarmuka cache ikon
+    │   └── icon_os_macos.m     # Implementasi ekstraksi ikon macOS menggunakan Cocoa (AppKit/NSWorkspace)
+    │
+    ├── platform/               # [Tanggung Jawab: Integrasi Fungsi Spesifik Sistem Operasi]
+    │   ├── platform.c          # Eksekusi membuka file/aplikasi secara native (Windows/Linux)
+    │   ├── platform.h          # Deklarasi antarmuka native runner
+    │   ├── platform_macos.m    # Eksekusi membuka file/aplikasi secara native di macOS (Cocoa)
+    │   ├── detection.c         # Fungsi deteksi tipe & nama OS saat runtime
+    │   ├── detection.h         # Deklarasi tipe PlatformOsType
+    │   ├── fs.c                # Pembacaan berkas sistem secara aman
+    │   └── fs.h                # Deklarasi helper pembaca file
+    │
+    ├── render/                 # [Tanggung Jawab: Penggambaran Grafis 2D & Teks Native]
+    │   ├── gl_render.c         # Inisialisasi renderer, frame swap, & render loop
+    │   ├── gl_render.h         # Deklarasi siklus render
+    │   ├── draw2d.c            # Penggambaran bentuk geometris (rounded rect, border, outline)
+    │   ├── draw2d.h            # Deklarasi fungsi primitif 2D & pembuatan tekstur teks
+    │   └── platform_text_macos.m # Rendering font native macOS (San Francisco 20pt) ke GPU SDL_Texture
+    │
+    └── search/                 # [Tanggung Jawab: Logika Kueri SQLite & Algoritma Relevansi]
+        ├── search.c            # Pencarian kueri ke SQLite (mendukung kueri kosong/shortcut)
+        ├── search.h            # Deklarasi antarmuka kueri pencarian
+        ├── ranking.c           # Algoritma pengurutan hasil pencarian berdasarkan kedekatan prefix
+        └── ranking.h           # Deklarasi antarmuka perankingan
