@@ -59,9 +59,20 @@ if not exist "%~dp0..\external\sdl3" (
 )
 
 if not exist "%~dp0..\external\sqlite3" (
-    echo [Spotlight Search] Mengunduh SQLite amalgamation dari github.com ke external\sqlite3...
-    if exist "%~dp0..\external\sqlite3" rmdir /s /q "%~dp0..\external\sqlite3"
-    git clone --depth 1 https://github.com/azadkuh/sqlite-amalgamation.git "%~dp0..\external\sqlite3"
+    echo [Spotlight Search] Mengunduh SQLite amalgamation...
+    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $url='https://github.com/azadkuh/sqlite-amalgamation/archive/refs/heads/master.zip'; $output='%~dp0..\external\sqlite3.zip'; $wc=New-Object System.Net.WebClient; register-objectevent $wc DownloadProgressChanged -action { Write-Host -NoNewline ('`r[Spotlight Search] Mengunduh SQLite: ' + $eventArgs.ProgressPercentage + '%%') } | Out-Null; $wc.DownloadFileAsync((New-Object System.Uri($url)), $output); while ($wc.IsBusy) { Start-Sleep -Milliseconds 100 }; Write-Host ''"
+    if !ERRORLEVEL! neq 0 (
+        echo [Spotlight Search] Gagal mengunduh SQLite. Pastikan koneksi internet aktif.
+        exit /b 1
+    )
+    echo [Spotlight Search] Mengekstrak SQLite...
+    powershell -Command "Expand-Archive -Path '%~dp0..\external\sqlite3.zip' -DestinationPath '%~dp0..\external'"
+    del "%~dp0..\external\sqlite3.zip"
+    
+    if exist "%~dp0..\external\sqlite-amalgamation-master" (
+        move "%~dp0..\external\sqlite-amalgamation-master" "%~dp0..\external\sqlite3" >nul
+    )
+    echo [Spotlight Search] SQLite berhasil dipasang di external\sqlite3!
 ) else (
     echo [Spotlight Search] SQLite sudah diunduh di external\sqlite3.
 )
