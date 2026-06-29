@@ -79,6 +79,10 @@ target_link_libraries(spotlight_search PRIVATE
     sqlite3_lib
 )
 
+if(UNIX)
+    target_link_libraries(spotlight_search PRIVATE m)
+endif()
+
 if(APPLE)
     target_link_libraries(spotlight_search PRIVATE "-framework Cocoa" "-framework AppKit")
 endif()
