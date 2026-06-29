@@ -377,18 +377,49 @@ void indexer_run(void) {
     }
 #endif
 
-    // Pemindaian seluruh folder home pengguna secara rekursif (depth <= 3)
+    // Pemindaian folder dokumen pengguna (Desktop, Documents, Downloads)
+#ifdef _WIN32
+    WCHAR path[MAX_PATH];
+    
+    // 1. Memindai Desktop
+    if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_DESKTOPDIRECTORY, NULL, 0, path))) {
+        char path_utf8[MAX_PATH];
+        WideCharToMultiByte(CP_UTF8, 0, path, -1, path_utf8, MAX_PATH, NULL, NULL);
+        printf("[Indexer] Memindai Desktop: %s\n", path_utf8);
+        scan_user_documents_recursive_win(path, 0);
+    }
+    
+    // 2. Memindai Documents
+    if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_PERSONAL, NULL, 0, path))) {
+        char path_utf8[MAX_PATH];
+        WideCharToMultiByte(CP_UTF8, 0, path, -1, path_utf8, MAX_PATH, NULL, NULL);
+        printf("[Indexer] Memindai Documents: %s\n", path_utf8);
+        scan_user_documents_recursive_win(path, 0);
+    }
+    
+    // 3. Memindai Downloads
+    char home_path[256];
+    if (fs_get_user_home(home_path, sizeof(home_path))) {
+        char downloads_path[512];
+        snprintf(downloads_path, sizeof(downloads_path), "%s\\Downloads", home_path);
+        
+        WCHAR wdownloads[MAX_PATH];
+        MultiByteToWideChar(CP_UTF8, 0, downloads_path, -1, wdownloads, MAX_PATH);
+        
+        DWORD attrs = GetFileAttributesW(wdownloads);
+        if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY)) {
+            printf("[Indexer] Memindai Downloads: %s\n", downloads_path);
+            scan_user_documents_recursive_win(wdownloads, 0);
+        }
+    }
+#else
+    // macOS / Linux: Pemindaian seluruh folder home pengguna secara rekursif (depth <= 3)
     char home_path[256];
     if (fs_get_user_home(home_path, sizeof(home_path))) {
         printf("[Indexer] Memindai seluruh folder pengguna di: %s\n", home_path);
-#ifdef _WIN32
-        WCHAR whome[MAX_PATH];
-        MultiByteToWideChar(CP_UTF8, 0, home_path, -1, whome, MAX_PATH);
-        scan_user_documents_recursive_win(whome, 0);
-#else
         scan_user_documents_recursive(home_path, 0);
-#endif
     }
+#endif
 
     // Cari jumlah item terindeks (dipisah antara aplikasi dan dokumen)
     sqlite3_stmt* stmt = NULL;
