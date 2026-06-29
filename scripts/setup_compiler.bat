@@ -9,7 +9,7 @@ if not exist "%~dp0..\external" mkdir "%~dp0..\external"
 
 if not exist "%~dp0..\external\w64devkit" (
     echo [Spotlight Search] Mengunduh compiler portable w64devkit GCC dan Make...
-    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/skeeto/w64devkit/releases/download/v2.0.0/w64devkit-2.0.0.zip' -OutFile '%~dp0..\external\w64devkit.zip'"
+    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/skeeto/w64devkit/releases/download/v1.20.0/w64devkit-1.20.0.zip' -OutFile '%~dp0..\external\w64devkit.zip'"
     if !ERRORLEVEL! neq 0 (
         echo [Spotlight Search] Gagal mengunduh compiler. Pastikan koneksi internet aktif.
         exit /b 1
