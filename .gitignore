@@ -17,3 +17,6 @@ Thumbs.db
 # Database SQLite hasil runtime (jika ada)
 /db/*.db
 !/db/.gitkeep
+
+# Hasil Kompilasi
+/bin/
