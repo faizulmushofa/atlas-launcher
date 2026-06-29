@@ -313,18 +313,24 @@ void indexer_run(void) {
     scan_mac_apps("/System/Applications");
 #elif defined(_WIN32)
     WCHAR program_data[MAX_PATH];
-    ExpandEnvironmentStringsW(L"%ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs", program_data, MAX_PATH);
-    char pd_utf8[MAX_PATH];
-    WideCharToMultiByte(CP_UTF8, 0, program_data, -1, pd_utf8, MAX_PATH, NULL, NULL);
-    printf("[Indexer] Memindai Start Menu (System): %s\n", pd_utf8);
-    scan_win_apps_recursive(program_data);
+    if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_COMMON_PROGRAMS, NULL, 0, program_data))) {
+        char pd_utf8[MAX_PATH];
+        WideCharToMultiByte(CP_UTF8, 0, program_data, -1, pd_utf8, MAX_PATH, NULL, NULL);
+        printf("[Indexer] Memindai Start Menu (System): %s\n", pd_utf8);
+        scan_win_apps_recursive(program_data);
+    } else {
+        printf("[Indexer] Gagal mendapatkan folder Start Menu (System)\n");
+    }
 
     WCHAR app_data[MAX_PATH];
-    ExpandEnvironmentStringsW(L"%AppData%\\Microsoft\\Windows\\Start Menu\\Programs", app_data, MAX_PATH);
-    char ad_utf8[MAX_PATH];
-    WideCharToMultiByte(CP_UTF8, 0, app_data, -1, ad_utf8, MAX_PATH, NULL, NULL);
-    printf("[Indexer] Memindai Start Menu (User): %s\n", ad_utf8);
-    scan_win_apps_recursive(app_data);
+    if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_PROGRAMS, NULL, 0, app_data))) {
+        char ad_utf8[MAX_PATH];
+        WideCharToMultiByte(CP_UTF8, 0, app_data, -1, ad_utf8, MAX_PATH, NULL, NULL);
+        printf("[Indexer] Memindai Start Menu (User): %s\n", ad_utf8);
+        scan_win_apps_recursive(app_data);
+    } else {
+        printf("[Indexer] Gagal mendapatkan folder Start Menu (User)\n");
+    }
 #elif defined(__linux__)
     scan_linux_apps("/usr/share/applications");
     char* home = getenv("HOME");
@@ -348,15 +354,25 @@ void indexer_run(void) {
 #endif
     }
 
-    // Cari jumlah item terindeks
+    // Cari jumlah item terindeks (dipisah antara aplikasi dan dokumen)
     sqlite3_stmt* stmt = NULL;
-    int total = 0;
-    if (sqlite3_prepare_v2((sqlite3*)db, "SELECT COUNT(*) FROM items;", -1, &stmt, NULL) == 0) {
-        if (sqlite3_step(stmt) == 100) { // SQLITE_ROW = 100
-            total = sqlite3_column_int(stmt, 0);
+    int total_apps = 0;
+    int total_docs = 0;
+    
+    if (sqlite3_prepare_v2((sqlite3*)db, "SELECT COUNT(*) FROM items WHERE type = 'app';", -1, &stmt, NULL) == SQLITE_OK) {
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            total_apps = sqlite3_column_int(stmt, 0);
+        }
+        sqlite3_finalize(stmt);
+    }
+    
+    if (sqlite3_prepare_v2((sqlite3*)db, "SELECT COUNT(*) FROM items WHERE type != 'app';", -1, &stmt, NULL) == SQLITE_OK) {
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            total_docs = sqlite3_column_int(stmt, 0);
         }
         sqlite3_finalize(stmt);
     }
 
-    printf("[Indexer] Pemindaian selesai! Berhasil mengindeks %d item.\n", total);
+    printf("[Indexer] Pemindaian selesai! Berhasil mengindeks %d aplikasi dan %d dokumen (Total: %d item).\n", 
+           total_apps, total_docs, total_apps + total_docs);
 }
