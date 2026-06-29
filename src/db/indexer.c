@@ -8,6 +8,31 @@
 #include <stdlib.h>
 #include <SDL3/SDL.h>
 
+// Struktur data memori untuk menampung hasil pemindaian sebelum ditulis ke database
+typedef struct {
+    char name[128];
+    char path[512];
+    char type[32];
+} IndexItem;
+
+#define MAX_INDEX_ITEMS 5000
+static IndexItem* g_index_items = NULL;
+static int g_index_item_count = 0;
+
+static void add_index_item(const char* name, const char* path, const char* type) {
+    if (!g_index_items || g_index_item_count >= MAX_INDEX_ITEMS) return;
+    
+    IndexItem* item = &g_index_items[g_index_item_count++];
+    strncpy(item->name, name, sizeof(item->name) - 1);
+    item->name[sizeof(item->name) - 1] = '\0';
+    
+    strncpy(item->path, path, sizeof(item->path) - 1);
+    item->path[sizeof(item->path) - 1] = '\0';
+    
+    strncpy(item->type, type, sizeof(item->type) - 1);
+    item->type[sizeof(item->type) - 1] = '\0';
+}
+
 // Helper check filter ektensi dokumen
 static bool is_document_extension(const char* filename, const char** out_ext) {
     const char* dot = strrchr(filename, '.');
@@ -27,7 +52,7 @@ static bool is_document_extension(const char* filename, const char** out_ext) {
     return false;
 }
 
-// Helper filter abaikan folder sistem/sampah/dev
+// Helper filter abaikan folder sistem/sampah/dev/circular loops
 static bool should_ignore_dir(const char* dir_name) {
     if (dir_name[0] == '.') return true;
 
@@ -35,7 +60,8 @@ static bool should_ignore_dir(const char* dir_name) {
         "node_modules", "Library", "AppData", "Application Data",
         "Local Settings", "Templates", "NetHood", "PrintHood",
         "Applications", "System", "Pictures", "Music", "Movies",
-        "Public", "Creative Cloud Files", "bin", "obj", "build", "dist"
+        "Public", "Creative Cloud Files", "bin", "obj", "build", "dist",
+        "My Music", "My Pictures", "My Videos", "My Documents"
     };
     int count = sizeof(ignore_list) / sizeof(ignore_list[0]);
     for (int i = 0; i < count; i++) {
@@ -64,7 +90,7 @@ static SDL_EnumerationResult SDLCALL scan_docs_callback(void *userdata, const ch
         } else if (info.type == SDL_PATHTYPE_FILE) {
             const char* ext = NULL;
             if (is_document_extension(fname, &ext)) {
-                db_insert_item(fname, full_path, ext, platform_get_os_name());
+                add_index_item(fname, full_path, ext);
             }
         }
     }
@@ -72,7 +98,7 @@ static SDL_EnumerationResult SDLCALL scan_docs_callback(void *userdata, const ch
 }
 
 static void scan_user_documents_recursive(const char* dir_path, int depth) {
-    if (depth > 3) return; // Batasi kedalaman rekursi agar performa tetap cepat
+    if (depth > 2) return; // Batasi kedalaman rekursi agar performa tetap cepat
     SDL_EnumerateDirectory(dir_path, scan_docs_callback, &depth);
 }
 
@@ -104,7 +130,7 @@ static SDL_EnumerationResult SDLCALL scan_apps_callback(void *userdata, const ch
                 if (name_len >= sizeof(name)) name_len = sizeof(name) - 1;
                 strncpy(name, fname, name_len);
                 name[name_len] = '\0';
-                db_insert_item(name, full_path, "app", "macOS");
+                add_index_item(name, full_path, "app");
                 return SDL_ENUM_CONTINUE;
             }
 #endif
@@ -118,7 +144,7 @@ static SDL_EnumerationResult SDLCALL scan_apps_callback(void *userdata, const ch
                 if (name_len >= sizeof(name)) name_len = sizeof(name) - 1;
                 strncpy(name, fname, name_len);
                 name[name_len] = '\0';
-                db_insert_item(name, full_path, "app", "Windows");
+                add_index_item(name, full_path, "app");
             }
 #elif defined(__linux__)
             // Di Linux, cari file .desktop
@@ -142,7 +168,7 @@ static SDL_EnumerationResult SDLCALL scan_apps_callback(void *userdata, const ch
                     }
                     fclose(f);
                     if (strlen(name) > 0 && strlen(exec) > 0) {
-                        db_insert_item(name, exec, "app", "Linux");
+                        add_index_item(name, exec, "app");
                     }
                 }
             }
@@ -164,17 +190,13 @@ void indexer_run(void) {
 
     printf("[Indexer] Memulai pemindaian. Platform terdeteksi: %s\n", platform_get_os_name());
 
-    // Bersihkan tabel items lama
-    char* err_msg = NULL;
-    int rc = sqlite3_exec((sqlite3*)db, "DELETE FROM items;", NULL, NULL, &err_msg);
-    if (rc != 0) {
-        fprintf(stderr, "[Indexer] Gagal membersihkan tabel items: %s\n", err_msg);
-        if (err_msg) sqlite3_free(err_msg);
+    // Alokasikan memori penampung
+    g_index_items = (IndexItem*)malloc(MAX_INDEX_ITEMS * sizeof(IndexItem));
+    g_index_item_count = 0;
+    if (!g_index_items) {
+        fprintf(stderr, "[Indexer] Gagal mengalokasikan memori pemindaian.\n");
         return;
     }
-
-    // Mulai transaksi SQLite untuk mempercepat penyimpanan data ke disk
-    sqlite3_exec((sqlite3*)db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
 
     // 1. Pemindaian Aplikasi
 #ifdef __APPLE__
@@ -226,8 +248,27 @@ void indexer_run(void) {
         scan_user_documents_recursive(downloads, 0);
     }
 
-    // Commit seluruh data terindeks ke basis data
-    sqlite3_exec((sqlite3*)db, "COMMIT;", NULL, NULL, NULL);
+    // Tulis data ke basis data secara atomik di akhir pemindaian (Mencegah Database Lock/Blocking)
+    char* err_msg = NULL;
+    int rc = sqlite3_exec((sqlite3*)db, "BEGIN TRANSACTION;", NULL, NULL, &err_msg);
+    if (rc == SQLITE_OK) {
+        // Bersihkan tabel items lama
+        sqlite3_exec((sqlite3*)db, "DELETE FROM items;", NULL, NULL, NULL);
+
+        // Masukkan semua data baru
+        for (int i = 0; i < g_index_item_count; i++) {
+            db_insert_item(g_index_items[i].name, g_index_items[i].path, g_index_items[i].type, platform_get_os_name());
+        }
+        
+        sqlite3_exec((sqlite3*)db, "COMMIT;", NULL, NULL, NULL);
+    } else {
+        fprintf(stderr, "[Indexer] Gagal memulai transaksi database: %s\n", err_msg);
+        if (err_msg) sqlite3_free(err_msg);
+    }
+
+    // Bebaskan memori
+    free(g_index_items);
+    g_index_items = NULL;
 
     // Cari jumlah item terindeks (dipisah antara aplikasi dan dokumen)
     sqlite3_stmt* stmt = NULL;

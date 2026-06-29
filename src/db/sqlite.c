@@ -42,6 +42,9 @@ bool db_init(void) {
 
     printf("[SQLite] Koneksi database berhasil! Versi: %s\n", sqlite3_libversion());
 
+    // Aktifkan WAL (Write-Ahead Logging) mode untuk konkurensi multi-thread
+    sqlite3_exec(db, "PRAGMA journal_mode=WAL;", NULL, NULL, NULL);
+
     // Buat tabel schema jika belum ada
     const char* sql = "CREATE TABLE IF NOT EXISTS items ("
                       "id INTEGER PRIMARY KEY AUTOINCREMENT,"
