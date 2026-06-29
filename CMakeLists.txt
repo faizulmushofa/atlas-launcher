@@ -52,6 +52,9 @@ set(SOURCES
     src/db/indexer.c
     src/icon/icon.c
     src/icon/icon_cache.c
+    src/icon/pe_parser.c
+    src/icon/icns_parser.c
+    src/icon/generic_icon.c
     src/search/search.c
     src/search/ranking.c
 )
@@ -60,7 +63,7 @@ set(SOURCES
 if(WIN32)
     list(APPEND SOURCES src/render/platform_text_windows.c src/platform/platform.c)
 elseif(APPLE)
-    list(APPEND SOURCES src/render/platform_text_macos.m src/icon/icon_os_macos.m src/platform/platform_macos.m)
+    list(APPEND SOURCES src/render/platform_text_macos.m src/platform/platform_macos.m)
 else()
     # Linux
     list(APPEND SOURCES src/platform/platform.c)

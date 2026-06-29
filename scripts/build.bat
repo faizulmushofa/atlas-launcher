@@ -75,6 +75,9 @@ if "%1"=="clean" (
             "%~dp0..\src\db\indexer.c" ^
             "%~dp0..\src\icon\icon.c" ^
             "%~dp0..\src\icon\icon_cache.c" ^
+            "%~dp0..\src\icon\pe_parser.c" ^
+            "%~dp0..\src\icon\icns_parser.c" ^
+            "%~dp0..\src\icon\generic_icon.c" ^
             "%~dp0..\src\search\search.c" ^
             "%~dp0..\src\search\ranking.c" ^
             "%~dp0..\src\render\platform_text_windows.c" ^
