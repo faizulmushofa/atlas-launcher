@@ -18,11 +18,22 @@ if not exist "%~dp0..\external\w64devkit" (
 )
 
 if not exist "%~dp0..\external\sdl3" (
-    echo [Spotlight Search] Mengunduh SDL3 dari github.com ke external\sdl3...
-    if exist "%~dp0..\external\sdl2" rmdir /s /q "%~dp0..\external\sdl2"
-    if exist "%~dp0..\external\sdl3" rmdir /s /q "%~dp0..\external\sdl3"
-    if not exist "%~dp0..\external" mkdir "%~dp0..\external"
-    git clone --depth 1 -b main https://github.com/libsdl-org/SDL.git "%~dp0..\external\sdl3"
+    echo [Spotlight Search] Mengunduh precompiled SDL3 development library...
+    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/libsdl-org/SDL/releases/download/release-3.2.0/SDL3-devel-3.2.0-mingw.zip' -OutFile '%~dp0..\external\sdl3_mingw.zip'"
+    if !ERRORLEVEL! neq 0 (
+        echo [Spotlight Search] Gagal mengunduh SDL3. Pastikan koneksi internet aktif.
+        exit /b 1
+    )
+    echo [Spotlight Search] Mengekstrak SDL3...
+    powershell -Command "Expand-Archive -Path '%~dp0..\external\sdl3_mingw.zip' -DestinationPath '%~dp0..\external'"
+    del "%~dp0..\external\sdl3_mingw.zip"
+    
+    :: Salin isi folder x86_64-w64-mingw32 ke external\sdl3
+    if exist "%~dp0..\external\SDL3-3.2.0" (
+        xcopy /e /i /y "%~dp0..\external\SDL3-3.2.0\x86_64-w64-mingw32" "%~dp0..\external\sdl3" >nul
+        rmdir /s /q "%~dp0..\external\SDL3-3.2.0"
+    )
+    echo [Spotlight Search] SDL3 berhasil dipasang di external\sdl3!
 ) else (
     echo [Spotlight Search] SDL3 sudah diunduh di external\sdl3.
 )
