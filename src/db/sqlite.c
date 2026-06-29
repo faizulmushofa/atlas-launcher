@@ -2,25 +2,32 @@
 #include "indexer.h"
 #include <sqlite3.h>
 #include <stdio.h>
-
-#ifdef _WIN32
-#include <direct.h>
-#else
-#include <sys/stat.h>
-#include <sys/types.h>
-#endif
+#include <SDL3/SDL.h>
+#include <string.h>
 
 static sqlite3* db = NULL;
+static char g_db_path[512] = "";
+
+const char* db_get_path(void) {
+    if (g_db_path[0] == '\0') {
+        char* pref_path = SDL_GetPrefPath("Atlas", "SpotlightSearch");
+        if (pref_path) {
+            snprintf(g_db_path, sizeof(g_db_path), "%sspotlight.db", pref_path);
+            SDL_free(pref_path);
+        } else {
+            // Fallback
+            strncpy(g_db_path, "db/spotlight.db", sizeof(g_db_path) - 1);
+            g_db_path[sizeof(g_db_path) - 1] = '\0';
+        }
+    }
+    return g_db_path;
+}
 
 bool db_init(void) {
-    // Buat folder db jika belum ada agar SQLite tidak gagal membuka berkas database
-#ifdef _WIN32
-    _mkdir("db");
-#else
-    mkdir("db", 0777);
-#endif
+    const char* db_path = db_get_path();
+    printf("[SQLite] Membuka database di: %s\n", db_path);
 
-    int rc = sqlite3_open("db/spotlight.db", &db);
+    int rc = sqlite3_open(db_path, &db);
     if (rc != SQLITE_OK) {
         fprintf(stderr, "[SQLite] Gagal membuka database: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
