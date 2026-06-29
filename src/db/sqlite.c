@@ -93,12 +93,16 @@ struct sqlite3* db_get_handle(void) {
 }
 
 bool db_insert_item(const char* name, const char* path, const char* type, const char* platform) {
-    if (!db) return false;
+    if (!db) {
+        fprintf(stderr, "[SQLite] Error: Mencoba insert item tetapi database belum aktif.\n");
+        return false;
+    }
 
     const char* sql = "INSERT INTO items (name, path, type, platform) VALUES (?, ?, ?, ?);";
     sqlite3_stmt* stmt = NULL;
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
+        fprintf(stderr, "[SQLite] Gagal menyiapkan statement insert item: %s\n", sqlite3_errmsg(db));
         return false;
     }
 
@@ -108,13 +112,19 @@ bool db_insert_item(const char* name, const char* path, const char* type, const 
     sqlite3_bind_text(stmt, 4, platform, -1, SQLITE_TRANSIENT);
 
     rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE) {
+        fprintf(stderr, "[SQLite] Gagal menjalankan insert item: %s\n", sqlite3_errmsg(db));
+    }
     sqlite3_finalize(stmt);
     
     return rc == SQLITE_DONE;
 }
 
 bool db_insert_shortcut(const char* name, const char* path, const char* type, const char* platform) {
-    if (!db) return false;
+    if (!db) {
+        fprintf(stderr, "[SQLite] Error: Mencoba insert shortcut tetapi database belum aktif.\n");
+        return false;
+    }
 
     // Pastikan tidak menduplikasi shortcut yang sama
     if (db_is_shortcut(path)) return true;
@@ -123,6 +133,7 @@ bool db_insert_shortcut(const char* name, const char* path, const char* type, co
     sqlite3_stmt* stmt = NULL;
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
+        fprintf(stderr, "[SQLite] Gagal menyiapkan statement insert shortcut: %s\n", sqlite3_errmsg(db));
         return false;
     }
 
@@ -132,23 +143,33 @@ bool db_insert_shortcut(const char* name, const char* path, const char* type, co
     sqlite3_bind_text(stmt, 4, platform, -1, SQLITE_TRANSIENT);
 
     rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE) {
+        fprintf(stderr, "[SQLite] Gagal menjalankan insert shortcut: %s\n", sqlite3_errmsg(db));
+    }
     sqlite3_finalize(stmt);
     
     return rc == SQLITE_DONE;
 }
 
 bool db_delete_shortcut(const char* path) {
-    if (!db) return false;
+    if (!db) {
+        fprintf(stderr, "[SQLite] Error: Mencoba delete shortcut tetapi database belum aktif.\n");
+        return false;
+    }
 
     const char* sql = "DELETE FROM shortcuts WHERE path = ?;";
     sqlite3_stmt* stmt = NULL;
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
+        fprintf(stderr, "[SQLite] Gagal menyiapkan statement delete shortcut: %s\n", sqlite3_errmsg(db));
         return false;
     }
 
     sqlite3_bind_text(stmt, 1, path, -1, SQLITE_TRANSIENT);
     rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE) {
+        fprintf(stderr, "[SQLite] Gagal menjalankan delete shortcut: %s\n", sqlite3_errmsg(db));
+    }
     sqlite3_finalize(stmt);
 
     return rc == SQLITE_DONE;
@@ -161,6 +182,7 @@ bool db_is_shortcut(const char* path) {
     sqlite3_stmt* stmt = NULL;
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
+        fprintf(stderr, "[SQLite] Gagal menyiapkan statement check shortcut: %s\n", sqlite3_errmsg(db));
         return false;
     }
 
