@@ -32,7 +32,6 @@ static uint32_t find_resource_entry(const unsigned char* buf, uint32_t res_root,
     uint16_t num_id = READ_LE16(dir + 14);
     uint16_t total = num_named + num_id;
     
-    const unsigned char* entries = dir + 16;
     for (uint16_t i = 0; i < total; i++) {
         uint32_t entry_offset = dir_offset + 16 + i * 8;
         if (res_root + entry_offset + 8 > file_size) return 0;
@@ -204,7 +203,7 @@ unsigned char* pe_extract_icon_data(const char* filepath, size_t* out_size, int*
     }
     
     uint16_t count = READ_LE16(group_data + 4);
-    if (6 + count * 14 > group_size) {
+    if (6 + (uint32_t)count * 14 > group_size) {
         free(buf);
         return NULL;
     }
@@ -277,7 +276,6 @@ unsigned char* pe_extract_icon_data(const char* filepath, size_t* out_size, int*
     }
     
     uint32_t icon_rva = READ_LE32(buf + icon_entry_file);
-    uint32_t icon_size_real = READ_LE32(buf + icon_entry_file + 4);
     uint32_t icon_file_offset = rva_to_file_offset(icon_rva, num_sections, sec_table, file_size);
     
     if (icon_file_offset == 0 || icon_file_offset + icon_size > (uint32_t)file_size) {
