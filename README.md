@@ -24,7 +24,7 @@ graph TD
     Indexer["Background Indexer (indexer.c)"] -->|Scan Filesystem| SQLite
     Search -->|5. Simpan Hasil Pilihan| State
     UI -->|6. Minta Ikon File| Icon["Icon Cache (icon_cache.c)"]
-    Icon -->|7. Miss? Ekstrak Native| NativeOS["Native OS API (NSWorkspace / Win32)"]
+    Icon -->|7. Miss? Ekstrak Lintas Platform| NativeOS["Pure C/SDL3 Extractors (PE, LNK & Cocoa Bundle)"]
     UI -->|8. Render Teks/Bentuk| Render["SDL3 Renderer (gl_render.c / draw2d.c)"]
     Render -->|"9. Swap Buffer (Tampilkan)"| Screen["Overlay Window (app.c)"]
 ```
@@ -35,7 +35,7 @@ graph TD
 
 - 🔍 **Pencarian SQLite Real-Time**: Pencarian secepat kilat dengan pencocokan string terindeks dan kueri teroptimasi.
 - 🕒 **Sistem Debouncing Input**: Menunda eksekusi kueri SQLite selama 100-200ms setelah selesai mengetik untuk menghindari *disk overhead* yang membebani CPU.
-- 🎨 **Ekstraksi Ikon Native OS**: Mengambil ikon asli sistem berkas menggunakan Cocoa (`NSWorkspace`) di macOS dan Win32 API di Windows.
+- 🎨 **Ekstraksi Ikon Lintas Platform Murni C**: Mengambil dan mendekode data ikon dari biner Windows EXE/DLL menggunakan parser PE (`pe_parser.c`) serta resolusi otomatis berkas shortcut `.lnk` menggunakan parser biner `MS-SHLLINK` mandiri, serta ekstraksi ikon bundel Cocoa (`.app`) di macOS.
 - 💾 **GPU Texture Caching**: Mengubah pixel buffer ikon menjadi `SDL_Texture` sekali saja dan menyimpannya di memori GPU untuk rendering instan tanpa lag.
 - 🔤 **Native OS Text Rendering**: Merender font sistem secara dinamis dengan kualitas tinggi (*antialiasing* native OS) serta mendukung karakter Unicode (UTF-8) penuh secara luwes (menggantikan sistem pemetaan ASCII manual yang kaku).
 
@@ -86,12 +86,12 @@ Ketika teks query diinputkan, pencarian tidak langsung ditembakkan ke database p
 - Query dikirimkan ke SQLite: `SELECT ... FROM items WHERE name LIKE ? LIMIT 10`.
 - Hasil pencarian diurutkan menggunakan algoritma perankingan sederhana (`ranking.c`) untuk mengevaluasi kesamaan awalan huruf (prefix matching) dan panjang kata. 5 hasil terbaik disalin ke `AppState`.
 
-### 4. Ekstraksi Ikon Native
+### 4. Ekstraksi Ikon Lintas Platform
 Setiap baris hasil pencarian membutuhkan ikon aplikasi:
 - UI meminta tekstur ikon ke `icon_cache`.
-- Jika belum ter-cache (*cache miss*), program memanggil API native sistem operasi:
-  - **macOS**: Menggunakan Cocoa API `[[NSWorkspace sharedWorkspace] iconForFile:path]` untuk mengambil pointer `NSImage` biner dari ikon berkas. `NSImage` ini kemudian di-rasterisasi ke bitmap buffer RGBA berukuran 32x32 piksel secara native.
-  - **Windows**: Menggunakan Win32 API `SHGetFileInfoW` untuk memperoleh handle `HICON` yang kemudian disalin ke buffer piksel RGBA.
+- Jika belum ter-cache (*cache miss*), program memanggil pengekstrak aslinya:
+  - **Windows (EXE/DLL/LNK)**: Jika berupa pintasan `.lnk`, program memecah file biner `.lnk` menggunakan parser `MS-SHLLINK` mandiri untuk mendapatkan jalur `.exe` target. Kemudian, file `.exe` dibaca oleh parser PE murni (`pe_parser.c`) yang mengurai direktori resource `.rsrc` untuk mengekstrak grup ikon dan merasterisasi bitmap RGBA-nya.
+  - **macOS (Bundle .app)**: Program membaca folder bundel `.app`, mem-parsing berkas `Info.plist` untuk menemukan nama berkas ikon `.icns`, mengurai berkas `.icns` (`icns_parser.c`), lalu merasterisasi data PNG/bitmap-nya ke buffer RGBA.
 - Buffer piksel mentah tersebut dikonversi menjadi `SDL_Surface` menggunakan `SDL_CreateSurfaceFrom` lalu diunggah ke GPU menjadi `SDL_Texture*` (`SDL_CreateTextureFromSurface`).
 - Tekstur ini disimpan permanen dalam cache untuk penggunaan ulang instan pada frame render berikutnya.
 
@@ -102,9 +102,8 @@ Untuk menggambar teks pencarian secara fleksibel tanpa keterbatasan ASCII:
 - Hasil rasterisasi font berupa bitmap langsung dibungkus menjadi `SDL_Texture` siap gambar. Hal ini memungkinkan dukungan penuh karakter Unicode UTF-8 secara native.
 
 ### 6. Eksekusi Peluncuran Aplikasi
-Saat baris hasil dipilih dan tombol `Enter` tekanan, aplikasi memanggil fungsi native platform:
-- macOS: Menggunakan API Cocoa untuk membuka file/aplikasi terkait di background secara bersih.
-- Windows: Menggunakan instruksi `ShellExecuteA` untuk menjalankan berkas.
+Saat baris hasil dipilih dan tombol `Enter` ditekan, aplikasi memanggil peluncur lintas platform:
+- Menggunakan fungsi standar **`SDL_OpenURL(path)`** yang secara otomatis memicu program peluncur default sistem operasi (bekerja di Windows, macOS, dan Linux).
 
 ---
 
