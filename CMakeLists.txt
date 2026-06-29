@@ -55,8 +55,14 @@ set(SOURCES
     src/search/ranking.c
 )
 
-if(APPLE)
+# Integrasi file sumber berdasarkan Platform OS
+if(WIN32)
+    list(APPEND SOURCES src/render/platform_text_windows.c src/platform/platform.c)
+elseif(APPLE)
     list(APPEND SOURCES src/render/platform_text_macos.m src/icon/icon_os_macos.m src/platform/platform_macos.m)
+else()
+    # Linux
+    list(APPEND SOURCES src/platform/platform.c)
 endif()
 
 # Target executable & linking
