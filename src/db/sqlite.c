@@ -3,9 +3,23 @@
 #include <sqlite3.h>
 #include <stdio.h>
 
+#ifdef _WIN32
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#include <sys/types.h>
+#endif
+
 static sqlite3* db = NULL;
 
 bool db_init(void) {
+    // Buat folder db jika belum ada agar SQLite tidak gagal membuka berkas database
+#ifdef _WIN32
+    _mkdir("db");
+#else
+    mkdir("db", 0777);
+#endif
+
     int rc = sqlite3_open("db/spotlight.db", &db);
     if (rc != SQLITE_OK) {
         fprintf(stderr, "[SQLite] Gagal membuka database: %s\n", sqlite3_errmsg(db));
