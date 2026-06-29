@@ -1,6 +1,9 @@
 @echo off
 setlocal enabledelayedexpansion
 
+:: Pastikan path sistem Windows dan PowerShell terdaftar di PATH
+set "PATH=%SystemRoot%\System32;%SystemRoot%\System32\WindowsPowerShell\v1.0\;%PATH%"
+
 echo [Spotlight Search] Memulai setup compiler lokal untuk Windows...
 if not exist "%~dp0..\external" mkdir "%~dp0..\external"
 

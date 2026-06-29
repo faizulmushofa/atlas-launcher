@@ -1,6 +1,9 @@
 @echo off
 setlocal enabledelayedexpansion
 
+:: Pastikan path sistem Windows dan PowerShell terdaftar di PATH
+set "PATH=%SystemRoot%\System32;%SystemRoot%\System32\WindowsPowerShell\v1.0\;%PATH%"
+
 :: 1. Cari compiler lokal w64devkit
 set "CC=gcc"
 if exist "%~dp0..\external\w64devkit\bin" (
