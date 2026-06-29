@@ -2,8 +2,10 @@
 setlocal enabledelayedexpansion
 
 :: 1. Cari compiler lokal w64devkit
+set "CC=gcc"
 if exist "%~dp0..\external\w64devkit\bin" (
     set "PATH=%~dp0..\external\w64devkit\bin;%PATH%"
+    set "CC=%~dp0..\external\w64devkit\bin\gcc.exe"
     echo [Spotlight Search] Menggunakan compiler lokal w64devkit dari external\w64devkit.
 ) else (
     echo [Spotlight Search] PERINGATAN: Compiler lokal tidak ditemukan di external\w64devkit.
@@ -55,7 +57,7 @@ if "%1"=="clean" (
         if not exist "%~dp0..\bin" mkdir "%~dp0..\bin"
         
         :: Kompilasi langsung semua source file
-        gcc -O3 -Wall -Wextra ^
+        !CC! -O3 -Wall -Wextra ^
             "%~dp0..\src\main.c" ^
             "%~dp0..\src\core\app.c" ^
             "%~dp0..\src\core\state.c" ^
