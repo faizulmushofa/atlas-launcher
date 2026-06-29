@@ -9,7 +9,7 @@ if not exist "%~dp0..\external" mkdir "%~dp0..\external"
 
 if not exist "%~dp0..\external\w64devkit" (
     echo [Spotlight Search] Mengunduh compiler portable w64devkit GCC dan Make...
-    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/skeeto/w64devkit/releases/download/v1.20.0/w64devkit-1.20.0.zip' -OutFile '%~dp0..\external\w64devkit.zip'"
+    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $url='https://github.com/skeeto/w64devkit/releases/download/v1.20.0/w64devkit-1.20.0.zip'; $output='%~dp0..\external\w64devkit.zip'; $wc=New-Object System.Net.WebClient; register-objectevent $wc DownloadProgressChanged -action { Write-Host -NoNewline ('`r[Spotlight Search] Mengunduh w64devkit: ' + $eventArgs.ProgressPercentage + '%%') } | Out-Null; $wc.DownloadFileAsync((New-Object System.Uri($url)), $output); while ($wc.IsBusy) { Start-Sleep -Milliseconds 100 }; Write-Host ''"
     if !ERRORLEVEL! neq 0 (
         echo [Spotlight Search] Gagal mengunduh compiler. Pastikan koneksi internet aktif.
         exit /b 1
@@ -30,7 +30,7 @@ if exist "%~dp0..\external\sdl3" (
 
 if not exist "%~dp0..\external\sdl3" (
     echo [Spotlight Search] Mengunduh precompiled SDL3 development library...
-    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/libsdl-org/SDL/releases/download/release-3.2.0/SDL3-devel-3.2.0-mingw.zip' -OutFile '%~dp0..\external\sdl3_mingw.zip'"
+    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $url='https://github.com/libsdl-org/SDL/releases/download/release-3.2.0/SDL3-devel-3.2.0-mingw.zip'; $output='%~dp0..\external\sdl3_mingw.zip'; $wc=New-Object System.Net.WebClient; register-objectevent $wc DownloadProgressChanged -action { Write-Host -NoNewline ('`r[Spotlight Search] Mengunduh SDL3: ' + $eventArgs.ProgressPercentage + '%%') } | Out-Null; $wc.DownloadFileAsync((New-Object System.Uri($url)), $output); while ($wc.IsBusy) { Start-Sleep -Milliseconds 100 }; Write-Host ''"
     if !ERRORLEVEL! neq 0 (
         echo [Spotlight Search] Gagal mengunduh SDL3. Pastikan koneksi internet aktif.
         exit /b 1
