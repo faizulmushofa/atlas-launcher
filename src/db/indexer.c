@@ -6,17 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
-#if defined(__APPLE__) || defined(__linux__)
-#include <dirent.h>
-#include <sys/stat.h>
-#include <strings.h>
-#endif
-
-#ifdef _WIN32
-#include <windows.h>
-#include <shlobj.h>
-#endif
+#include <SDL3/SDL.h>
 
 // Helper check filter ektensi dokumen
 static bool is_document_extension(const char* filename, const char** out_ext) {
@@ -29,11 +19,7 @@ static bool is_document_extension(const char* filename, const char** out_ext) {
     int count = sizeof(allowed_extensions) / sizeof(allowed_extensions[0]);
     
     for (int i = 0; i < count; i++) {
-#ifdef _WIN32
-        if (_stricmp(dot, allowed_extensions[i]) == 0) {
-#else
-        if (strcasecmp(dot, allowed_extensions[i]) == 0) {
-#endif
+        if (SDL_strcasecmp(dot, allowed_extensions[i]) == 0) {
             *out_ext = allowed_extensions[i] + 1;
             return true;
         }
@@ -53,319 +39,124 @@ static bool should_ignore_dir(const char* dir_name) {
     };
     int count = sizeof(ignore_list) / sizeof(ignore_list[0]);
     for (int i = 0; i < count; i++) {
-#ifdef _WIN32
-        if (_stricmp(dir_name, ignore_list[i]) == 0) return true;
-#else
-        if (strcasecmp(dir_name, ignore_list[i]) == 0) return true;
-#endif
+        if (SDL_strcasecmp(dir_name, ignore_list[i]) == 0) return true;
     }
     return false;
 }
 
-#ifdef _WIN32
-static bool should_ignore_dir_win(const WCHAR* dir_name) {
-    if (dir_name[0] == L'.') return true;
+// Rekursi Dokumen
+static void scan_user_documents_recursive(const char* dir_path, int depth);
 
-    char name_utf8[128];
-    WideCharToMultiByte(CP_UTF8, 0, dir_name, -1, name_utf8, sizeof(name_utf8) - 1, NULL, NULL);
-    name_utf8[sizeof(name_utf8) - 1] = '\0';
+static SDL_EnumerationResult SDLCALL scan_docs_callback(void *userdata, const char *dirname, const char *fname) {
+    int depth = *(int*)userdata;
 
-    return should_ignore_dir(name_utf8);
-}
-#endif
+    if (should_ignore_dir(fname)) {
+        return SDL_ENUM_CONTINUE;
+    }
 
-// macOS App Scanning
-#ifdef __APPLE__
-static void scan_mac_apps(const char* dir_path) {
-    DIR* dir = opendir(dir_path);
-    if (!dir) return;
+    char full_path[2048];
+    snprintf(full_path, sizeof(full_path), "%s%s", dirname, fname);
 
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
-
-        size_t len = strlen(entry->d_name);
-        if (len > 4 && strcmp(entry->d_name + len - 4, ".app") == 0) {
-            char name[128];
-            strncpy(name, entry->d_name, len - 4);
-            name[len - 4] = '\0';
-
-            char path[512];
-            snprintf(path, sizeof(path), "%s/%s", dir_path, entry->d_name);
-
-            db_insert_item(name, path, "app", "macOS");
+    SDL_PathInfo info;
+    if (SDL_GetPathInfo(full_path, &info)) {
+        if (info.type == SDL_PATHTYPE_DIRECTORY) {
+            scan_user_documents_recursive(full_path, depth + 1);
+        } else if (info.type == SDL_PATHTYPE_FILE) {
+            const char* ext = NULL;
+            if (is_document_extension(fname, &ext)) {
+                db_insert_item(fname, full_path, ext, platform_get_os_name());
+            }
         }
     }
-    closedir(dir);
+    return SDL_ENUM_CONTINUE;
 }
 
 static void scan_user_documents_recursive(const char* dir_path, int depth) {
     if (depth > 3) return; // Batasi kedalaman rekursi agar performa tetap cepat
-
-    DIR* dir = opendir(dir_path);
-    if (!dir) return;
-
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != NULL) {
-        if (should_ignore_dir(entry->d_name)) {
-            continue;
-        }
-
-        char full_path[512];
-        snprintf(full_path, sizeof(full_path), "%s/%s", dir_path, entry->d_name);
-
-        struct stat st;
-        if (stat(full_path, &st) == 0) {
-            if (S_ISDIR(st.st_mode)) {
-                scan_user_documents_recursive(full_path, depth + 1);
-            } else if (S_ISREG(st.st_mode)) {
-                const char* ext = NULL;
-                if (is_document_extension(entry->d_name, &ext)) {
-                    db_insert_item(entry->d_name, full_path, ext, platform_get_os_name());
-                }
-            }
-        }
-    }
-    closedir(dir);
-}
-#endif
-
-// Windows App Scanning & Recursive Document Scanning
-#ifdef _WIN32
-static void log_win32_error(const char* context, const WCHAR* wpath, DWORD err) {
-    char path_utf8[1024] = {0};
-    WideCharToMultiByte(CP_UTF8, 0, wpath, -1, path_utf8, sizeof(path_utf8) - 1, NULL, NULL);
-    
-    LPSTR messageBuffer = NULL;
-    size_t size = FormatMessageA(
-        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-        NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
-    
-    if (size > 0 && messageBuffer) {
-        size_t len = strlen(messageBuffer);
-        while (len > 0 && (messageBuffer[len - 1] == '\n' || messageBuffer[len - 1] == '\r')) {
-            messageBuffer[len - 1] = '\0';
-            len--;
-        }
-        printf("[Indexer Error] %s untuk '%s': %s (Error Code: %lu)\n", context, path_utf8, messageBuffer, err);
-        LocalFree(messageBuffer);
-    } else {
-        printf("[Indexer Error] %s untuk '%s': Unknown Error (Error Code: %lu)\n", context, path_utf8, err);
-    }
+    SDL_EnumerateDirectory(dir_path, scan_docs_callback, &depth);
 }
 
-static void scan_win_apps_recursive(const WCHAR* dir_path) {
-    WCHAR search_path[2048];
-    size_t dir_len = wcslen(dir_path);
-    if (dir_len > 0 && (dir_path[dir_len - 1] == L'\\' || dir_path[dir_len - 1] == L'/')) {
-        swprintf(search_path, 2048, L"%s*", dir_path);
-    } else {
-        swprintf(search_path, 2048, L"%s\\*", dir_path);
-    }
+// Rekursi Aplikasi
+static void scan_apps_recursive(const char* dir_path, int depth);
 
-    WIN32_FIND_DATAW find_data;
-    HANDLE find_handle = FindFirstFileW(search_path, &find_data);
-    if (find_handle == INVALID_HANDLE_VALUE) {
-        DWORD err = GetLastError();
-        log_win32_error("FindFirstFileW", search_path, err);
-        return;
-    }
+typedef struct {
+    int depth;
+} AppScanContext;
 
-    int lnk_scanned = 0;
+static SDL_EnumerationResult SDLCALL scan_apps_callback(void *userdata, const char *dirname, const char *fname) {
+    AppScanContext* ctx = (AppScanContext*)userdata;
+    size_t fname_len = strlen(fname);
+    if (fname_len == 0) return SDL_ENUM_CONTINUE;
 
-    do {
-        if (wcscmp(find_data.cFileName, L".") == 0 || wcscmp(find_data.cFileName, L"..") == 0) {
-            continue;
-        }
+    if (fname[0] == '.') return SDL_ENUM_CONTINUE;
 
-        if (should_ignore_dir_win(find_data.cFileName)) {
-            continue;
-        }
+    char full_path[2048];
+    snprintf(full_path, sizeof(full_path), "%s%s", dirname, fname);
 
-        WCHAR full_path[2048];
-        swprintf(full_path, 2048, L"%s\\%s", dir_path, find_data.cFileName);
-
-        if (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            if (find_data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
-                continue; // Lewati reparse point (symlink/junction) untuk menghindari loop
-            }
-            scan_win_apps_recursive(full_path);
-        } else {
-            size_t len = wcslen(find_data.cFileName);
-            if (len > 4 && _wcsicmp(find_data.cFileName + len - 4, L".lnk") == 0) {
+    SDL_PathInfo info;
+    if (SDL_GetPathInfo(full_path, &info)) {
+        if (info.type == SDL_PATHTYPE_DIRECTORY) {
+#ifdef __APPLE__
+            // Di macOS, jika folder berakhiran .app, anggap aplikasi dan jangan masuk ke dalam
+            if (fname_len > 4 && strcmp(fname + fname_len - 4, ".app") == 0) {
                 char name[128];
-                int written = WideCharToMultiByte(CP_UTF8, 0, find_data.cFileName, (int)len - 4, name, sizeof(name) - 1, NULL, NULL);
-                if (written >= 0) {
-                    name[written] = '\0';
-                } else {
-                    name[0] = '\0';
-                }
-
-                char path[512];
-                WideCharToMultiByte(CP_UTF8, 0, full_path, -1, path, sizeof(path) - 1, NULL, NULL);
-
-                bool success = db_insert_item(name, path, "app", "Windows");
-                if (success) {
-                    lnk_scanned++;
-                } else {
-                    printf("[Indexer] Gagal menyimpan ke DB: %s\n", name);
-                }
+                size_t name_len = fname_len - 4;
+                if (name_len >= sizeof(name)) name_len = sizeof(name) - 1;
+                strncpy(name, fname, name_len);
+                name[name_len] = '\0';
+                db_insert_item(name, full_path, "app", "macOS");
+                return SDL_ENUM_CONTINUE;
             }
-        }
-    } while (FindNextFileW(find_handle, &find_data));
-
-    FindClose(find_handle);
-
-    if (lnk_scanned > 0) {
-        char path_utf8[2048];
-        WideCharToMultiByte(CP_UTF8, 0, dir_path, -1, path_utf8, 2048, NULL, NULL);
-        printf("[Indexer] Folder '%s': Menemukan %d file shortcut (.lnk)\n", path_utf8, lnk_scanned);
-    }
-}
-
-static void scan_user_documents_recursive_win(const WCHAR* dir_path, int depth) {
-    if (depth > 3) return;
-
-    WCHAR search_path[2048];
-    size_t dir_len = wcslen(dir_path);
-    if (dir_len > 0 && (dir_path[dir_len - 1] == L'\\' || dir_path[dir_len - 1] == L'/')) {
-        swprintf(search_path, 2048, L"%s*", dir_path);
-    } else {
-        swprintf(search_path, 2048, L"%s\\*", dir_path);
-    }
-
-    WIN32_FIND_DATAW find_data;
-    HANDLE find_handle = FindFirstFileW(search_path, &find_data);
-    if (find_handle == INVALID_HANDLE_VALUE) {
-        DWORD err = GetLastError();
-        // Abaikan logging Access Denied (5) pada folder sistem tersembunyi
-        if (err != 5) {
-            log_win32_error("FindFirstFileW (doc)", search_path, err);
-        }
-        return;
-    }
-
-    int docs_scanned = 0;
-
-    do {
-        if (should_ignore_dir_win(find_data.cFileName)) {
-            continue;
-        }
-
-        WCHAR full_path[2048];
-        swprintf(full_path, 2048, L"%s\\%s", dir_path, find_data.cFileName);
-
-        if (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            if (find_data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
-                continue; // Lewati reparse point (symlink/junction) untuk menghindari loop
-            }
-            scan_user_documents_recursive_win(full_path, depth + 1);
-        } else {
-            char filename_utf8[128];
-            WideCharToMultiByte(CP_UTF8, 0, find_data.cFileName, -1, filename_utf8, sizeof(filename_utf8) - 1, NULL, NULL);
-            filename_utf8[sizeof(filename_utf8) - 1] = '\0';
-
-            const char* ext = NULL;
-            if (is_document_extension(filename_utf8, &ext)) {
-                char path_utf8[512];
-                WideCharToMultiByte(CP_UTF8, 0, full_path, -1, path_utf8, sizeof(path_utf8) - 1, NULL, NULL);
-                path_utf8[sizeof(path_utf8) - 1] = '\0';
-
-                bool success = db_insert_item(filename_utf8, path_utf8, ext, "Windows");
-                if (success) {
-                    docs_scanned++;
-                }
-            }
-        }
-    } while (FindNextFileW(find_handle, &find_data));
-
-    FindClose(find_handle);
-
-    if (docs_scanned > 0) {
-        char path_utf8[2048];
-        WideCharToMultiByte(CP_UTF8, 0, dir_path, -1, path_utf8, 2048, NULL, NULL);
-        printf("[Indexer] Folder '%s': Menemukan %d file dokumen terindeks\n", path_utf8, docs_scanned);
-    }
-}
 #endif
-
-// Linux App Scanning & Recursive Document Scanning
-#ifdef __linux__
-static void scan_linux_apps(const char* dir_path) {
-    DIR* dir = opendir(dir_path);
-    if (!dir) return;
-
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
-
-        size_t len = strlen(entry->d_name);
-        if (len > 8 && strcmp(entry->d_name + len - 8, ".desktop") == 0) {
-            char path[512];
-            snprintf(path, sizeof(path), "%s/%s", dir_path, entry->d_name);
-
-            FILE* f = fopen(path, "r");
-            if (f) {
-                char line[256];
-                char name[128] = "";
-                char exec[256] = "";
-                while (fgets(line, sizeof(line), f)) {
-                    if (strncmp(line, "Name=", 5) == 0 && strlen(name) == 0) {
-                        strncpy(name, line + 5, sizeof(name) - 1);
-                        name[strcspn(name, "\r\n")] = 0;
+            scan_apps_recursive(full_path, ctx->depth + 1);
+        } else if (info.type == SDL_PATHTYPE_FILE) {
+#ifdef _WIN32
+            // Di Windows, cari file .lnk
+            if (fname_len > 4 && SDL_strcasecmp(fname + fname_len - 4, ".lnk") == 0) {
+                char name[128];
+                size_t name_len = fname_len - 4;
+                if (name_len >= sizeof(name)) name_len = sizeof(name) - 1;
+                strncpy(name, fname, name_len);
+                name[name_len] = '\0';
+                db_insert_item(name, full_path, "app", "Windows");
+            }
+#elif defined(__linux__)
+            // Di Linux, cari file .desktop
+            if (fname_len > 8 && strcmp(fname + fname_len - 8, ".desktop") == 0) {
+                FILE* f = fopen(full_path, "r");
+                if (f) {
+                    char line[256];
+                    char name[128] = "";
+                    char exec[256] = "";
+                    while (fgets(line, sizeof(line), f)) {
+                        if (strncmp(line, "Name=", 5) == 0 && strlen(name) == 0) {
+                            strncpy(name, line + 5, sizeof(name) - 1);
+                            name[strcspn(name, "\r\n")] = 0;
+                        }
+                        if (strncmp(line, "Exec=", 5) == 0 && strlen(exec) == 0) {
+                            strncpy(exec, line + 5, sizeof(exec) - 1);
+                            exec[strcspn(exec, "\r\n")] = 0;
+                            char* space = strchr(exec, ' ');
+                            if (space) *space = '\0';
+                        }
                     }
-                    if (strncmp(line, "Exec=", 5) == 0 && strlen(exec) == 0) {
-                        strncpy(exec, line + 5, sizeof(exec) - 1);
-                        exec[strcspn(exec, "\r\n")] = 0;
-                        char* space = strchr(exec, ' ');
-                        if (space) *space = '\0';
+                    fclose(f);
+                    if (strlen(name) > 0 && strlen(exec) > 0) {
+                        db_insert_item(name, exec, "app", "Linux");
                     }
                 }
-                fclose(f);
-
-                if (strlen(name) > 0 && strlen(exec) > 0) {
-                    db_insert_item(name, exec, "app", "Linux");
-                }
             }
-        }
-    }
-    closedir(dir);
-}
-
-static void scan_user_documents_recursive(const char* dir_path, int depth) {
-    if (depth > 3) return;
-
-    DIR* dir = opendir(dir_path);
-    if (!dir) return;
-
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != NULL) {
-        if (should_ignore_dir(entry->d_name)) {
-            continue;
-        }
-
-        char full_path[512];
-        snprintf(full_path, sizeof(full_path), "%s/%s", dir_path, entry->d_name);
-
-        struct stat st;
-        if (stat(full_path, &st) == 0) {
-            if (S_ISDIR(st.st_mode)) {
-                scan_user_documents_recursive(full_path, depth + 1);
-            } else if (S_ISREG(st.st_mode)) {
-                const char* ext = NULL;
-                if (is_document_extension(entry->d_name, &ext)) {
-                    db_insert_item(entry->d_name, full_path, ext, platform_get_os_name());
-                }
-            }
-        }
-    }
-    closedir(dir);
-}
 #endif
+        }
+    }
+    return SDL_ENUM_CONTINUE;
+}
+
+static void scan_apps_recursive(const char* dir_path, int depth) {
+    if (depth > 5) return;
+    AppScanContext ctx = { depth };
+    SDL_EnumerateDirectory(dir_path, scan_apps_callback, &ctx);
+}
 
 void indexer_run(void) {
     struct sqlite3* db = db_get_handle();
@@ -382,82 +173,55 @@ void indexer_run(void) {
         return;
     }
 
+    // 1. Pemindaian Aplikasi
 #ifdef __APPLE__
-    scan_mac_apps("/Applications");
-    scan_mac_apps("/System/Applications");
+    printf("[Indexer] Memindai folder aplikasi macOS...\n");
+    scan_apps_recursive("/Applications", 0);
+    scan_apps_recursive("/System/Applications", 0);
 #elif defined(_WIN32)
-    WCHAR program_data[MAX_PATH];
-    if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_COMMON_PROGRAMS, NULL, 0, program_data))) {
-        char pd_utf8[MAX_PATH];
-        WideCharToMultiByte(CP_UTF8, 0, program_data, -1, pd_utf8, MAX_PATH, NULL, NULL);
-        printf("[Indexer] Memindai Start Menu (System): %s\n", pd_utf8);
-        scan_win_apps_recursive(program_data);
-    } else {
-        printf("[Indexer] Gagal mendapatkan folder Start Menu (System)\n");
+    char* program_data = getenv("ProgramData");
+    if (program_data) {
+        char path[512];
+        snprintf(path, sizeof(path), "%s\\Microsoft\\Windows\\Start Menu\\Programs", program_data);
+        printf("[Indexer] Memindai Start Menu (System): %s\n", path);
+        scan_apps_recursive(path, 0);
     }
-
-    WCHAR app_data[MAX_PATH];
-    if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_PROGRAMS, NULL, 0, app_data))) {
-        char ad_utf8[MAX_PATH];
-        WideCharToMultiByte(CP_UTF8, 0, app_data, -1, ad_utf8, MAX_PATH, NULL, NULL);
-        printf("[Indexer] Memindai Start Menu (User): %s\n", ad_utf8);
-        scan_win_apps_recursive(app_data);
-    } else {
-        printf("[Indexer] Gagal mendapatkan folder Start Menu (User)\n");
+    char* app_data = getenv("APPDATA");
+    if (app_data) {
+        char path[512];
+        snprintf(path, sizeof(path), "%s\\Microsoft\\Windows\\Start Menu\\Programs", app_data);
+        printf("[Indexer] Memindai Start Menu (User): %s\n", path);
+        scan_apps_recursive(path, 0);
     }
 #elif defined(__linux__)
-    scan_linux_apps("/usr/share/applications");
+    printf("[Indexer] Memindai folder aplikasi Linux...\n");
+    scan_apps_recursive("/usr/share/applications", 0);
     char* home = getenv("HOME");
     if (home) {
         char local_apps[512];
         snprintf(local_apps, sizeof(local_apps), "%s/.local/share/applications", home);
-        scan_linux_apps(local_apps);
+        scan_apps_recursive(local_apps, 0);
     }
 #endif
 
-    // Pemindaian folder dokumen pengguna (Desktop, Documents, Downloads)
-#ifdef _WIN32
-    WCHAR path[MAX_PATH];
-    
-    // 1. Memindai Desktop
-    if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_DESKTOPDIRECTORY, NULL, 0, path))) {
-        char path_utf8[MAX_PATH];
-        WideCharToMultiByte(CP_UTF8, 0, path, -1, path_utf8, MAX_PATH, NULL, NULL);
-        printf("[Indexer] Memindai Desktop: %s\n", path_utf8);
-        scan_user_documents_recursive_win(path, 0);
+    // 2. Pemindaian folder dokumen pengguna (Desktop, Documents, Downloads)
+    const char* desktop = SDL_GetUserFolder(SDL_FOLDER_DESKTOP);
+    if (desktop) {
+        printf("[Indexer] Memindai Desktop: %s\n", desktop);
+        scan_user_documents_recursive(desktop, 0);
     }
     
-    // 2. Memindai Documents
-    if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_PERSONAL, NULL, 0, path))) {
-        char path_utf8[MAX_PATH];
-        WideCharToMultiByte(CP_UTF8, 0, path, -1, path_utf8, MAX_PATH, NULL, NULL);
-        printf("[Indexer] Memindai Documents: %s\n", path_utf8);
-        scan_user_documents_recursive_win(path, 0);
+    const char* documents = SDL_GetUserFolder(SDL_FOLDER_DOCUMENTS);
+    if (documents) {
+        printf("[Indexer] Memindai Documents: %s\n", documents);
+        scan_user_documents_recursive(documents, 0);
     }
     
-    // 3. Memindai Downloads
-    char home_path[256];
-    if (fs_get_user_home(home_path, sizeof(home_path))) {
-        char downloads_path[512];
-        snprintf(downloads_path, sizeof(downloads_path), "%s\\Downloads", home_path);
-        
-        WCHAR wdownloads[MAX_PATH];
-        MultiByteToWideChar(CP_UTF8, 0, downloads_path, -1, wdownloads, MAX_PATH);
-        
-        DWORD attrs = GetFileAttributesW(wdownloads);
-        if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY)) {
-            printf("[Indexer] Memindai Downloads: %s\n", downloads_path);
-            scan_user_documents_recursive_win(wdownloads, 0);
-        }
+    const char* downloads = SDL_GetUserFolder(SDL_FOLDER_DOWNLOADS);
+    if (downloads) {
+        printf("[Indexer] Memindai Downloads: %s\n", downloads);
+        scan_user_documents_recursive(downloads, 0);
     }
-#else
-    // macOS / Linux: Pemindaian seluruh folder home pengguna secara rekursif (depth <= 3)
-    char home_path[256];
-    if (fs_get_user_home(home_path, sizeof(home_path))) {
-        printf("[Indexer] Memindai seluruh folder pengguna di: %s\n", home_path);
-        scan_user_documents_recursive(home_path, 0);
-    }
-#endif
 
     // Cari jumlah item terindeks (dipisah antara aplikasi dan dokumen)
     sqlite3_stmt* stmt = NULL;

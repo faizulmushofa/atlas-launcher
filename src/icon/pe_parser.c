@@ -3,10 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-
-#ifdef _WIN32
-#include <windows.h>
-#endif
+#include <SDL3/SDL.h>
 
 #define READ_LE16(p) ((uint16_t)(((p)[1] << 8) | (p)[0]))
 #define READ_LE32(p) ((uint32_t)(((p)[3] << 24) | ((p)[2] << 16) | ((p)[1] << 8) | (p)[0]))
@@ -60,63 +57,32 @@ static uint32_t find_resource_entry(const unsigned char* buf, uint32_t res_root,
 }
 
 unsigned char* pe_extract_icon_data(const char* filepath, size_t* out_size, int* is_png) {
-#ifdef _WIN32
-    // Konversi path UTF-8 ke UTF-16 wide-character agar aman di Windows
-    int wlen = MultiByteToWideChar(CP_UTF8, 0, filepath, -1, NULL, 0);
-    FILE* f = NULL;
-    if (wlen > 0) {
-        wchar_t* wpath = (wchar_t*)malloc(wlen * sizeof(wchar_t));
-        if (wpath) {
-            MultiByteToWideChar(CP_UTF8, 0, filepath, -1, wpath, wlen);
-            f = _wfopen(wpath, L"rb");
-            if (!f) {
-                DWORD err = GetLastError();
-                LPSTR messageBuffer = NULL;
-                size_t size = FormatMessageA(
-                    FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                    NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
-                if (size > 0 && messageBuffer) {
-                    size_t len = strlen(messageBuffer);
-                    while (len > 0 && (messageBuffer[len - 1] == '\n' || messageBuffer[len - 1] == '\r')) {
-                        messageBuffer[len - 1] = '\0';
-                        len--;
-                    }
-                    printf("[pe_parser Error] Gagal membuka file untuk ekstrak ikon '%s': %s (Error Code: %lu)\n", filepath, messageBuffer, err);
-                    LocalFree(messageBuffer);
-                } else {
-                    printf("[pe_parser Error] Gagal membuka file untuk ekstrak ikon '%s': Unknown Error (Error Code: %lu)\n", filepath, err);
-                }
-            }
-            free(wpath);
-        }
+    SDL_IOStream* io = SDL_IOFromFile(filepath, "rb");
+    if (!io) {
+        printf("[pe_parser Error] Gagal membuka file untuk ekstrak ikon '%s': %s\n", filepath, SDL_GetError());
+        return NULL;
     }
-#else
-    FILE* f = fopen(filepath, "rb");
-#endif
-    if (!f) return NULL;
     
-    fseek(f, 0, SEEK_END);
-    long file_size = ftell(f);
-    fseek(f, 0, SEEK_SET);
+    Sint64 file_size = SDL_GetIOSize(io);
     
     // Batasan ukuran file executable (maksimal 100MB untuk mencegah konsumsi RAM berlebih)
     if (file_size <= 64 || file_size > 100 * 1024 * 1024) {
-        fclose(f);
+        SDL_CloseIO(io);
         return NULL;
     }
     
     unsigned char* buf = (unsigned char*)malloc(file_size);
     if (!buf) {
-        fclose(f);
+        SDL_CloseIO(io);
         return NULL;
     }
     
-    if (fread(buf, 1, file_size, f) != (size_t)file_size) {
+    if (SDL_ReadIO(io, buf, file_size) != (size_t)file_size) {
         free(buf);
-        fclose(f);
+        SDL_CloseIO(io);
         return NULL;
     }
-    fclose(f);
+    SDL_CloseIO(io);
     
     // 1. Validasi DOS MZ header
     if (READ_LE16(buf) != 0x5A4D) {
