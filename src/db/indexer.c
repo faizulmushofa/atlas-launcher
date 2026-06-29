@@ -297,7 +297,7 @@ void indexer_run(void) {
     struct sqlite3* db = db_get_handle();
     if (!db) return;
 
-    printf("[Indexer] Memulai pemindaian aplikasi sistem...\n");
+    printf("[Indexer] Memulai pemindaian. Platform terdeteksi: %s\n", platform_get_os_name());
 
     // Bersihkan tabel items lama
     char* err_msg = NULL;

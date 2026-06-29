@@ -62,6 +62,8 @@ void search_query(const char* query_text) {
     char pattern[258];
     snprintf(pattern, sizeof(pattern), "%%%s%%", query_text);
 
+    printf("[Search] Melakukan pencarian. Kueri: '%s', Pola: '%s', OS Platform: '%s'\n", query_text, pattern, platform_get_os_name());
+
     const char* sql = "SELECT id, name, path, type, platform FROM items "
                       "WHERE name LIKE ? AND (platform = ? OR platform = 'all') "
                       "LIMIT 10;";
@@ -106,6 +108,8 @@ void search_query(const char* query_text) {
 
         count++;
     }
+
+    printf("[Search] SQLite mengembalikan %d hasil mentah.\n", count);
 
     sqlite3_finalize(stmt);
 
