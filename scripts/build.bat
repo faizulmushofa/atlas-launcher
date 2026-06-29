@@ -23,6 +23,8 @@ if "%1"=="clean" (
     ) else (
         echo [Spotlight Search] Eksekutabel tidak ditemukan. Silakan jalankan 'build.bat' terlebih dahulu.
     )
+) else if "%1"=="direct" (
+    goto :gcc_build
 ) else (
     :: Periksa apakah cmake ada di sistem
     where cmake >nul 2>nul

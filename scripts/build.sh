@@ -22,7 +22,9 @@ elif [ "$ACTION" = "run" ]; then
     fi
 else
     goto_direct_build=false
-    if command -v cmake &> /dev/null; then
+    if [ "$ACTION" = "direct" ]; then
+        goto_direct_build=true
+    elif command -v cmake &> /dev/null; then
         echo "[Spotlight Search] Mengonfigurasi build dengan CMake..."
         cmake -B build -S .
         if [ $? -ne 0 ]; then
