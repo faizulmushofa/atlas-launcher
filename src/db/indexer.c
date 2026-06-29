@@ -134,17 +134,42 @@ static void scan_user_documents_recursive(const char* dir_path, int depth) {
 
 // Windows App Scanning & Recursive Document Scanning
 #ifdef _WIN32
+static void log_win32_error(const char* context, const WCHAR* wpath, DWORD err) {
+    char path_utf8[1024] = {0};
+    WideCharToMultiByte(CP_UTF8, 0, wpath, -1, path_utf8, sizeof(path_utf8) - 1, NULL, NULL);
+    
+    LPSTR messageBuffer = NULL;
+    size_t size = FormatMessageA(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
+    
+    if (size > 0 && messageBuffer) {
+        size_t len = strlen(messageBuffer);
+        while (len > 0 && (messageBuffer[len - 1] == '\n' || messageBuffer[len - 1] == '\r')) {
+            messageBuffer[len - 1] = '\0';
+            len--;
+        }
+        printf("[Indexer Error] %s untuk '%s': %s (Error Code: %lu)\n", context, path_utf8, messageBuffer, err);
+        LocalFree(messageBuffer);
+    } else {
+        printf("[Indexer Error] %s untuk '%s': Unknown Error (Error Code: %lu)\n", context, path_utf8, err);
+    }
+}
+
 static void scan_win_apps_recursive(const WCHAR* dir_path) {
     WCHAR search_path[2048];
-    swprintf(search_path, 2048, L"%s\\*", dir_path);
+    size_t dir_len = wcslen(dir_path);
+    if (dir_len > 0 && (dir_path[dir_len - 1] == L'\\' || dir_path[dir_len - 1] == L'/')) {
+        swprintf(search_path, 2048, L"%s*", dir_path);
+    } else {
+        swprintf(search_path, 2048, L"%s\\*", dir_path);
+    }
 
     WIN32_FIND_DATAW find_data;
     HANDLE find_handle = FindFirstFileW(search_path, &find_data);
     if (find_handle == INVALID_HANDLE_VALUE) {
         DWORD err = GetLastError();
-        char path_utf8[2048];
-        WideCharToMultiByte(CP_UTF8, 0, dir_path, -1, path_utf8, 2048, NULL, NULL);
-        printf("[Indexer] WARNING: FindFirstFileW gagal untuk '%s' (Error Code: %lu)\n", path_utf8, err);
+        log_win32_error("FindFirstFileW", search_path, err);
         return;
     }
 
@@ -204,17 +229,20 @@ static void scan_user_documents_recursive_win(const WCHAR* dir_path, int depth) 
     if (depth > 3) return;
 
     WCHAR search_path[2048];
-    swprintf(search_path, 2048, L"%s\\*", dir_path);
+    size_t dir_len = wcslen(dir_path);
+    if (dir_len > 0 && (dir_path[dir_len - 1] == L'\\' || dir_path[dir_len - 1] == L'/')) {
+        swprintf(search_path, 2048, L"%s*", dir_path);
+    } else {
+        swprintf(search_path, 2048, L"%s\\*", dir_path);
+    }
 
     WIN32_FIND_DATAW find_data;
     HANDLE find_handle = FindFirstFileW(search_path, &find_data);
     if (find_handle == INVALID_HANDLE_VALUE) {
         DWORD err = GetLastError();
-        char path_utf8[2048];
-        WideCharToMultiByte(CP_UTF8, 0, dir_path, -1, path_utf8, 2048, NULL, NULL);
         // Abaikan logging Access Denied (5) pada folder sistem tersembunyi
         if (err != 5) {
-            printf("[Indexer] WARNING: FindFirstFileW (doc) gagal untuk '%s' (Error Code: %lu)\n", path_utf8, err);
+            log_win32_error("FindFirstFileW (doc)", search_path, err);
         }
         return;
     }

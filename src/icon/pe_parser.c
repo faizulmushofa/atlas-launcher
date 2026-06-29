@@ -69,6 +69,24 @@ unsigned char* pe_extract_icon_data(const char* filepath, size_t* out_size, int*
         if (wpath) {
             MultiByteToWideChar(CP_UTF8, 0, filepath, -1, wpath, wlen);
             f = _wfopen(wpath, L"rb");
+            if (!f) {
+                DWORD err = GetLastError();
+                LPSTR messageBuffer = NULL;
+                size_t size = FormatMessageA(
+                    FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                    NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
+                if (size > 0 && messageBuffer) {
+                    size_t len = strlen(messageBuffer);
+                    while (len > 0 && (messageBuffer[len - 1] == '\n' || messageBuffer[len - 1] == '\r')) {
+                        messageBuffer[len - 1] = '\0';
+                        len--;
+                    }
+                    printf("[pe_parser Error] Gagal membuka file untuk ekstrak ikon '%s': %s (Error Code: %lu)\n", filepath, messageBuffer, err);
+                    LocalFree(messageBuffer);
+                } else {
+                    printf("[pe_parser Error] Gagal membuka file untuk ekstrak ikon '%s': Unknown Error (Error Code: %lu)\n", filepath, err);
+                }
+            }
             free(wpath);
         }
     }
