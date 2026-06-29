@@ -8,12 +8,13 @@ on:
 
 jobs:
   build:
-    name: Build on ${{ matrix.os }}
+    name: Build on ${{ matrix.os }} (${{ matrix.build-method }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        build-method: [cmake, direct]
 
     steps:
     - name: Checkout repository
@@ -31,16 +32,47 @@ jobs:
           libxtst-dev libxkbcommon-dev
 
     # 2. Unduh Pustaka Eksternal (SDL3 & SQLite Amalgamation) ke folder local external/
-    - name: Download External Libraries (SDL3 & SQLite)
+    - name: Download External Libraries (SDL3 & SQLite) (Unix)
+      if: matrix.os != 'windows-latest'
       shell: bash
       run: |
         chmod +x scripts/setup_compiler.sh
         ./scripts/setup_compiler.sh
 
-    # 3. Konfigurasi CMake Build
-    - name: Configure CMake
-      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+    - name: Download External Libraries & Compiler (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: cmd
+      run: |
+        call scripts\setup_compiler.bat
 
-    # 4. Kompilasi Kode Aplikasi
-    - name: Build Spotlight Search
-      run: cmake --build build --config Release
+    # 3. Setup Lingkungan Khusus untuk Build Tanpa CMake
+    - name: Setup System SDL3 for Direct Build (macOS)
+      if: matrix.os == 'macos-latest' && matrix.build-method == 'direct'
+      run: brew install sdl3
+
+    - name: Build and Install SDL3 from Source for Direct Build (Linux)
+      if: matrix.os == 'ubuntu-latest' && matrix.build-method == 'direct'
+      run: |
+        cmake -S external/sdl3 -B build_sdl -DCMAKE_BUILD_TYPE=Release
+        cmake --build build_sdl
+        sudo cmake --install build_sdl
+
+    # 4. Jalankan Pembangunan Berdasarkan Metode
+    - name: Build with CMake
+      if: matrix.build-method == 'cmake'
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --config Release
+
+    - name: Build without CMake (Direct Build)
+      if: matrix.build-method == 'direct'
+      shell: bash
+      run: |
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          # Tambahkan compiler w64devkit ke PATH
+          export PATH="$GITHUB_WORKSPACE/external/w64devkit/bin:$PATH"
+          ./scripts/build.bat direct
+        else
+          chmod +x scripts/build.sh
+          ./scripts/build.sh direct
+        fi
